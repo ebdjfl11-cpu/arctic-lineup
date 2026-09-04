@@ -378,7 +378,6 @@
   <script>
     let isAdmin = sessionStorage.getItem('isAdmin') === 'true';
 
-    // 선수 식별 함수
     function getPKey(p) {
       if (!p) return '';
       if (p.id !== undefined && p.id !== null && String(p.id).trim() !== '' && String(p.id) !== 'undefined') {
@@ -633,7 +632,8 @@
         cell.className = 'flex flex-col items-center justify-start cursor-pointer hover:bg-slate-900/90 py-1 px-0.5 rounded transition min-h-[50px] mobile-cell-fix';
 
         if (player) {
-          cell.onclick = () => showPlayerInfo(getPKey(player));
+          const key = getPKey(player);
+          cell.onclick = () => showPlayerInfo(key);
           cell.innerHTML = `
             <span class="jersey-num text-xl mobile-num-fix font-bold tracking-tight drop-shadow-[0_1px_1px_rgba(255,255,255,0.2)]" style="color: var(--gold);">${i}</span>
             <span class="text-[10.5px] mobile-name-fix font-bold text-slate-100 tracking-tighter truncate w-full px-0 leading-none mt-1">${player.name}</span>
@@ -686,7 +686,6 @@
 
         const hasRole = player.role && player.role !== '일반';
 
-        // 1. 정보 영역
         const infoDiv = document.createElement('div');
         infoDiv.className = 'flex items-center gap-2 cursor-pointer flex-1 min-w-0';
         infoDiv.onclick = () => showPlayerInfo(pKey);
@@ -704,7 +703,6 @@
         `;
         card.appendChild(infoDiv);
 
-        // 2. 관리 버튼 영역
         const actionDiv = document.createElement('div');
         actionDiv.className = 'flex items-center gap-1 shrink-0';
 
@@ -936,6 +934,7 @@
       syncToServer();
     }
 
+    // P(only)가 9번 타자 바로 아래(정렬상 10번째, 혹은 야수들 다음)로 오도록 정렬 순서 부여
     function sortLineupByPosition() {
       const posOrder = {
         'C': 1,
@@ -949,7 +948,8 @@
         'P': 9, 'SP': 9, 'RP': 9,
         'P(only)': 10,
         'DH': 11,
-        '-': 12
+        'SUB': 12,
+        '-': 13
       };
       
       lineup.sort((a, b) => {
@@ -968,7 +968,6 @@
       });
     }
 
-    // 출전 토글 함수
     function togglePlayerInLineup(playerKey) {
       if (!isAdmin) return;
       const player = roster.find(p => getPKey(p) === String(playerKey));
@@ -976,9 +975,8 @@
 
       const idx = lineup.findIndex(l => getPKey(l) === String(playerKey));
       if (idx === -1) {
-        // C - 1B - 2B - 3B - SS - LF - CF - RF - P 순서로 자동 채우기
         const fillSequence = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'P'];
-        let assignedPos = '-';
+        let assignedPos = 'SUB';
         for (let pos of fillSequence) {
           let isOccupied = lineup.some(l => l.orderPos === pos || (pos === 'P' && l.orderPos === 'P(only)'));
           if (!isOccupied) {
@@ -1003,7 +1001,6 @@
       if (!isAdmin) return;
       const oldPos = lineup[idx].orderPos;
       
-      // -, SUB가 아니면 기존에 해당 포지션 있는 사람과 스왑
       if (newPos !== '-' && newPos !== 'SUB') {
         const existingIdx = lineup.findIndex((p, i) => {
           if (i === idx) return false;
@@ -1071,6 +1068,7 @@
       document.getElementById('prev-place').innerText = gameInfo.place || '구장 미정';
     }
 
+    // 왼쪽 배팅오더 설정 패널 렌더링 (P(only) 선수가 9번 밑에 타순 번호 없이 P로 오도록 정렬 반영)
     function renderLineup() {
       const container = document.getElementById('lineup-container');
       const countEl = document.getElementById('lineup-count');
@@ -1087,19 +1085,33 @@
       }
 
       container.innerHTML = '';
-      let battingCount = 0;
+      
+      // 일반 타자(1~9번)와 P(only) 선수를 분리해서 정확한 순서(1~9번 + P(only)) 생성
+      const regularBatters = lineup.filter(p => p.orderPos !== 'SUB' && p.orderPos !== '-' && p.orderPos !== 'P(only)');
+      const pOnlyPlayer = lineup.find(p => p.orderPos === 'P(only)');
+      const otherPlayers = lineup.filter(p => p.orderPos === 'SUB' || p.orderPos === '-');
 
-      lineup.forEach((player, i) => {
+      // 화면에 그려질 최종 정렬 배열 재조합 (1~9번 타자 -> P(only) -> SUB / - 순서)
+      const sortedDisplayList = [];
+      let bOrder = 1;
+      for (let i = 0; i < regularBatters.length && i < 9; i++) {
+        sortedDisplayList.push({ ...regularBatters[i], displayOrder: bOrder++ });
+      }
+      if (pOnlyPlayer) {
+        sortedDisplayList.push({ ...pOnlyPlayer, displayOrder: 'P' });
+      }
+      if (regularBatters[9]) {
+        sortedDisplayList.push({ ...regularBatters[9], displayOrder: bOrder++ });
+      }
+      otherPlayers.forEach(p => {
+        sortedDisplayList.push({ ...p, displayOrder: '-' });
+      });
+
+      sortedDisplayList.forEach((player, i) => {
         const isSub = player.orderPos === 'SUB';
         const isDash = player.orderPos === '-';
         const isPOnly = player.orderPos === 'P(only)';
-        let orderDisplay = '-';
-        if (isPOnly) {
-          orderDisplay = 'P';
-        } else if (!isSub && !isDash) {
-          battingCount++;
-          orderDisplay = battingCount;
-        }
+        const orderDisplay = player.displayOrder;
 
         const row = document.createElement('div');
         row.className = `card-item p-3 rounded-xl flex items-center gap-2.5 border shadow-sm ${isSub ? 'border-slate-800/80 bg-[#12151b]' : 'border-slate-800'}`;
@@ -1107,13 +1119,13 @@
         let controlsHtml = '';
         if (isAdmin) {
           controlsHtml = `
-            <select onchange="changePos(${i}, this.value)" class="input-field text-xs font-black px-2.5 py-1.5 rounded-lg bg-[#0b0d11] ${isSub ? 'border-slate-700 text-slate-400' : ''}" style="${!isSub ? 'border-color: rgba(223,177,91,0.4); color: var(--gold);' : ''}">
+            <select onchange="changePosOriginalIndex('${getPKey(player)}', this.value)" class="input-field text-xs font-black px-2.5 py-1.5 rounded-lg bg-[#0b0d11] ${isSub ? 'border-slate-700 text-slate-400' : ''}" style="${!isSub ? 'border-color: rgba(223,177,91,0.4); color: var(--gold);' : ''}">
               ${LINEUP_POSITIONS.map(pos => `<option value="${pos}" ${player.orderPos === pos ? 'selected' : ''}>${pos}</option>`).join('')}
             </select>
             <div class="flex gap-1 shrink-0">
-              <button onclick="moveOrder(${i}, -1)" class="w-7 h-7 bg-slate-800 text-slate-300 hover:text-white rounded flex items-center justify-center text-xs font-bold">▲</button>
-              <button onclick="moveOrder(${i}, 1)" class="w-7 h-7 bg-slate-800 text-slate-300 hover:text-white rounded flex items-center justify-center text-xs font-bold">▼</button>
-              <button onclick="removeOrder(${i})" class="w-7 h-7 bg-rose-950/60 text-rose-300 hover:bg-rose-900 rounded flex items-center justify-center text-xs font-bold" title="타순에서 제외 (-)">-</button>
+              <button onclick="moveOrderKey('${getPKey(player)}', -1)" class="w-7 h-7 bg-slate-800 text-slate-300 hover:text-white rounded flex items-center justify-center text-xs font-bold">▲</button>
+              <button onclick="moveOrderKey('${getPKey(player)}', 1)" class="w-7 h-7 bg-slate-800 text-slate-300 hover:text-white rounded flex items-center justify-center text-xs font-bold">▼</button>
+              <button onclick="removeOrderKey('${getPKey(player)}')" class="w-7 h-7 bg-rose-950/60 text-rose-300 hover:bg-rose-900 rounded flex items-center justify-center text-xs font-bold" title="타순에서 제외 (-)">-</button>
             </div>
           `;
         } else {
@@ -1130,6 +1142,27 @@
         `;
         container.appendChild(row);
       });
+    }
+
+    function changePosOriginalIndex(pKey, newPos) {
+      if (!isAdmin) return;
+      const idx = lineup.findIndex(l => getPKey(l) === String(pKey));
+      if (idx === -1) return;
+      changePos(idx, newPos);
+    }
+
+    function moveOrderKey(pKey, dir) {
+      if (!isAdmin) return;
+      const idx = lineup.findIndex(l => getPKey(l) === String(pKey));
+      if (idx === -1) return;
+      moveOrder(idx, dir);
+    }
+
+    function removeOrderKey(pKey) {
+      if (!isAdmin) return;
+      const idx = lineup.findIndex(l => getPKey(l) === String(pKey));
+      if (idx === -1) return;
+      removeOrder(idx);
     }
 
     function renderPreview() {
@@ -1174,10 +1207,9 @@
       const tableGrid = document.getElementById('order-table-grid');
       tableGrid.innerHTML = '';
 
-      // P(only) 선수는 무조건 왼쪽 열의 10번째 줄(9번 타자 바로 밑)에 고정
       const regularBatters = lineup.filter(p => p.orderPos !== 'SUB' && p.orderPos !== '-' && p.orderPos !== 'P(only)');
       const pOnlyPlayer = lineup.find(p => p.orderPos === 'P(only)');
-      const subPlayers = lineup.filter(p => p.orderPos === 'SUB' || p.orderPos === '-');
+      const subPlayers = lineup.filter(p => p.orderPos === 'SUB');
 
       const col1 = [];
       const col2 = [];
@@ -1187,24 +1219,21 @@
         col2.push({ order: '', name: '', pos: '', isSub: true });
       }
 
-      // 1번 ~ 9번 타자 채우기
       let batOrder = 1;
       for (let i = 0; i < regularBatters.length && i < 9; i++) {
         const p = regularBatters[i];
         col1[i] = { order: batOrder++, name: p.name, pos: p.orderPos, isSub: false };
       }
 
-      // 10번째 칸: P(only) 선수가 있으면 무조건 왼쪽 칸 9번 타자 아래에 P로 배치
       if (pOnlyPlayer) {
         col1[9] = { order: 'P', name: pOnlyPlayer.name, pos: 'P', isSub: false };
       } else if (regularBatters[9]) {
         col1[9] = { order: batOrder++, name: regularBatters[9].name, pos: regularBatters[9].orderPos, isSub: false };
       }
 
-      // 오른쪽 칸: 순수 대기/후보 선수 (SUB, -)만 위에서부터 순서대로 배치
       for (let i = 0; i < subPlayers.length && i < 10; i++) {
         const p = subPlayers[i];
-        col2[i] = { order: '-', name: p.name, pos: p.orderPos === '-' ? '-' : 'SUB', isSub: true };
+        col2[i] = { order: '-', name: p.name, pos: 'SUB', isSub: true };
       }
 
       let col1Html = `<div class="space-y-[2px]">`;
