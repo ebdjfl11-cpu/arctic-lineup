@@ -374,7 +374,18 @@
   <script>
     let isAdmin = sessionStorage.getItem('isAdmin') === 'true';
 
-    // 모바일 뷰 전환 함수 (로스터 / 라인업)
+    // 선수 고유 식별자 추출 (id가 없거나 문자열 'undefined'여도 등번호(no)를 조합하여 100% 분리 식별)
+    function getPlayerKey(p) {
+      if (!p) return '';
+      if (p.id !== undefined && p.id !== null && String(p.id).trim() !== '' && String(p.id) !== 'undefined') {
+        return String(p.id);
+      }
+      if (p.no !== undefined && p.no !== null && String(p.no).trim() !== '') {
+        return 'no_' + String(p.no);
+      }
+      return 'p_' + String(p.name);
+    }
+
     function switchMobileView(view) {
       const colRoster = document.getElementById('col-roster');
       const colPreview = document.getElementById('col-preview');
@@ -416,7 +427,6 @@
         btn.style.backgroundColor = 'var(--gold)';
         btn.style.color = '#000000';
         
-        // 관리자 모드일 때는 모바일 상단 탭 숨김 (모든 패널을 넓게 한눈에 보기 위함)
         if (mobileTabs) mobileTabs.style.display = 'none';
         colRoster.style.display = 'flex';
         colRoster.className = 'w-full lg:w-[450px] panel-bg rounded-2xl p-4 flex flex-col h-[880px] shrink-0';
@@ -431,7 +441,6 @@
         btn.style.backgroundColor = '';
         btn.style.color = '';
         
-        // 공유 모드(일반)이고 모바일 화면일 때 상단 탭 노출 및 초기 로스터 탭 선택
         if (window.innerWidth < 1024) {
           if (mobileTabs) mobileTabs.style.display = 'flex';
           switchMobileView('roster');
@@ -451,7 +460,6 @@
       renderLineup();
     }
 
-    // 화면 크기 변경 시 대응
     window.addEventListener('resize', () => {
       const mobileTabs = document.getElementById('mobile-mode-tabs');
       const colRoster = document.getElementById('col-roster');
@@ -532,13 +540,28 @@
     let roster = [];
     let lineup = [];
     let gameInfo = { myTeam: 'ARCTIC BASEBALL CLUB', opp: '', date: '2026.08.29', time: '07:00', place: '송도랜드마크야구장' };
-    const LINEUP_POSITIONS = ['-', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'P', 'SP', 'RP', 'DH', 'SUB'];
+    const LINEUP_POSITIONS = ['-', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'P', 'P(only)', 'SP', 'RP', 'DH', 'SUB'];
 
     TEAM_DOC_REF.onSnapshot((doc) => {
       if (doc.exists) {
         const data = doc.data();
-        if (data.roster) roster = data.roster;
-        if (data.lineup) lineup = data.lineup;
+        
+        // 파이어베이스에서 로드 시 모든 선수에게 유효한 id 부여 보장
+        if (data.roster) {
+          const rawRoster = Array.isArray(data.roster) ? data.roster : Object.values(data.roster);
+          roster = rawRoster.map(p => ({
+            ...p,
+            id: getPlayerKey(p)
+          }));
+        }
+        if (data.lineup) {
+          const rawLineup = Array.isArray(data.lineup) ? data.lineup : Object.values(data.lineup);
+          lineup = rawLineup.map(p => ({
+            ...p,
+            id: getPlayerKey(p)
+          }));
+        }
+
         if (data.gameInfo) {
           gameInfo = data.gameInfo;
           document.getElementById('game-myteam').value = gameInfo.myTeam || '';
@@ -556,13 +579,30 @@
       document.getElementById('sync-status').className = 'text-[10px] bg-rose-950 text-rose-400 border border-rose-500/40 px-1.5 py-0.5 rounded font-bold';
     });
 
+    // Firestore serverTimestamp 보존 및 undefined 에러 완벽 차단 함수
+    function sanitizeObject(obj) {
+      if (Array.isArray(obj)) {
+        return obj.map(sanitizeObject);
+      } else if (obj !== null && typeof obj === 'object') {
+        if (obj instanceof firebase.firestore.FieldValue) return obj;
+        const clean = {};
+        for (const key of Object.keys(obj)) {
+          if (obj[key] !== undefined) {
+            clean[key] = sanitizeObject(obj[key]);
+          }
+        }
+        return clean;
+      }
+      return obj;
+    }
+
     function syncToServer() {
-      TEAM_DOC_REF.set({
+      TEAM_DOC_REF.set(sanitizeObject({
         roster: roster,
         lineup: lineup,
         gameInfo: gameInfo,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true }).catch(err => console.error("동기화 실패:", err));
+      }), { merge: true }).catch(err => console.error("동기화 실패:", err));
     }
 
     function switchRosterTab(tab) {
@@ -608,11 +648,11 @@
       for (let i = 0; i <= 99; i++) {
         const player = numMap[i];
         const cell = document.createElement('div');
-        // PC 화면에서는 높이 50px 및 기본 패딩 적용, 모바일에서는 .mobile-cell-fix에 의해 덮어씌워짐
         cell.className = 'flex flex-col items-center justify-start cursor-pointer hover:bg-slate-900/90 py-1 px-0.5 rounded transition min-h-[50px] mobile-cell-fix';
 
         if (player) {
-          cell.onclick = () => showPlayerInfo(player.id);
+          const key = getPlayerKey(player);
+          cell.onclick = () => showPlayerInfo(key);
           cell.innerHTML = `
             <span class="jersey-num text-xl mobile-num-fix font-bold tracking-tight drop-shadow-[0_1px_1px_rgba(255,255,255,0.2)]" style="color: var(--gold);">${i}</span>
             <span class="text-[10.5px] mobile-name-fix font-bold text-slate-100 tracking-tighter truncate w-full px-0 leading-none mt-1">${player.name}</span>
@@ -657,7 +697,8 @@
       }
 
       displayList.forEach(player => {
-        const inLineup = lineup.some(l => l.id === player.id);
+        const pKey = getPlayerKey(player);
+        const inLineup = lineup.some(l => getPlayerKey(l) === pKey);
         const card = document.createElement('div');
         card.className = `card-item p-2.5 rounded-xl flex items-center justify-between gap-2 transition ${inLineup ? 'bg-[#1e2430]' : 'hover:border-slate-600'}`;
         if (inLineup) card.style.borderColor = 'rgba(223,177,91,0.5)';
@@ -668,19 +709,23 @@
         if (isAdmin) {
           if (!inLineup) {
             adminActionButtons = `
-              <button onclick="togglePlayerInLineup(${player.id})" class="w-7 h-7 rounded text-xs font-black transition flex items-center justify-center bg-slate-800 text-white hover:bg-slate-700" title="출전 추가 (+)">
+              <button onclick="togglePlayerInLineup('${pKey}')" class="w-7 h-7 rounded text-xs font-black transition flex items-center justify-center bg-slate-800 text-white hover:bg-slate-700" title="출전 추가 (+)">
                 +
               </button>
             `;
           } else {
-            adminActionButtons = `<span class="w-7 h-7 rounded text-xs font-black flex items-center justify-center shadow" style="background-color: var(--gold); color: #000000;" title="출전중">+</span>`;
+            adminActionButtons = `
+              <button onclick="togglePlayerInLineup('${pKey}')" class="w-7 h-7 rounded text-xs font-black flex items-center justify-center shadow" style="background-color: var(--gold); color: #000000;" title="출전 취소 (명단에서 제외)">
+                ✓
+              </button>
+            `;
           }
 
           adminActionButtons += `
-            <button onclick="openEditModal(${player.id})" class="w-7 h-7 bg-slate-800 text-slate-300 hover:text-white rounded flex items-center justify-center text-xs transition" title="수정">
+            <button onclick="openEditModal('${pKey}')" class="w-7 h-7 bg-slate-800 text-slate-300 hover:text-white rounded flex items-center justify-center text-xs transition" title="수정">
               ✎
             </button>
-            <button onclick="quickDeletePlayer(${player.id})" class="w-7 h-7 bg-rose-950/60 text-rose-300 hover:bg-rose-900 rounded flex items-center justify-center text-xs transition font-bold" title="삭제">
+            <button onclick="quickDeletePlayer('${pKey}')" class="w-7 h-7 bg-rose-950/60 text-rose-300 hover:bg-rose-900 rounded flex items-center justify-center text-xs transition font-bold" title="삭제">
               X
             </button>
           `;
@@ -693,7 +738,7 @@
         }
 
         card.innerHTML = `
-          <div class="flex items-center gap-2 cursor-pointer flex-1 min-w-0" onclick="showPlayerInfo(${player.id})" title="상세정보 확인">
+          <div class="flex items-center gap-2 cursor-pointer flex-1 min-w-0" onclick="showPlayerInfo('${pKey}')" title="상세정보 확인">
             <div class="w-8 h-8 rounded-lg bg-[#0b0d11] flex items-center justify-center font-black text-xs shadow-inner hover:scale-105 transition shrink-0" style="border: 1px solid rgba(223,177,91,0.4); color: var(--gold);">
               ${player.no}
             </div>
@@ -713,57 +758,37 @@
       });
     }
 
-    function quickDeletePlayer(playerId) {
+    function quickDeletePlayer(playerKey) {
       if (!isAdmin) return;
-      const p = roster.find(item => item.id == playerId);
+      const p = roster.find(item => getPlayerKey(item) === String(playerKey));
       if (!p) return;
       if (!confirm(`${p.name} 선수를 완전히 삭제하시겠습니까?`)) return;
-      roster = roster.filter(item => item.id != playerId);
-      lineup = lineup.filter(item => item.id != playerId);
+      roster = roster.filter(item => getPlayerKey(item) !== String(playerKey));
+      lineup = lineup.filter(item => getPlayerKey(item) !== String(playerKey));
       updateViews();
       syncToServer();
     }
 
-    function showPlayerInfo(playerId) {
-      const p = roster.find(item => item.id === playerId);
+    function showPlayerInfo(playerKey) {
+      const p = roster.find(item => getPlayerKey(item) === String(playerKey));
       if (!p) return;
 
-      const inLineupPlayer = lineup.find(l => l.id === p.id);
       document.getElementById('info-badge-no').innerText = p.no;
       document.getElementById('info-name').innerText = p.name;
       document.getElementById('info-role').innerText = (p.role && p.role !== '일반') ? p.role : '선수';
       document.getElementById('info-pos').innerText = p.pos;
+      
       document.getElementById('info-birth').innerText = p.birth || '미등록';
       document.getElementById('info-phone').innerText = p.phone || '미등록';
       document.getElementById('info-role-text').innerText = (p.role && p.role !== '일반') ? p.role : '일반';
       document.getElementById('info-pos-text').innerText = p.pos;
-
-      const statusEl = document.getElementById('info-status');
-      if (inLineupPlayer) {
-        if (inLineupPlayer.orderPos === 'SUB') {
-          statusEl.innerText = `후보 선수 (SUB)`;
-          statusEl.className = "font-bold text-slate-300";
-        } else {
-          let orderNum = 0;
-          for (let i = 0; i < lineup.length; i++) {
-            if (lineup[i].orderPos !== 'SUB' && lineup[i].orderPos !== '-') orderNum++;
-            if (lineup[i].id === p.id) break;
-          }
-          statusEl.innerText = `${orderNum > 0 ? orderNum + '번 타자' : '순번 대기'} (${inLineupPlayer.orderPos})`;
-          statusEl.className = "font-bold";
-          statusEl.style.color = "var(--gold)";
-        }
-      } else {
-        statusEl.innerText = "대기중 (미출전)";
-        statusEl.className = "font-bold text-slate-400";
-      }
 
       const editBtn = document.getElementById('info-edit-btn');
       if (isAdmin) {
         editBtn.style.display = '';
         editBtn.onclick = () => {
           closeInfoModal();
-          openEditModal(p.id);
+          openEditModal(getPlayerKey(p));
         };
       } else {
         editBtn.style.display = 'none';
@@ -788,12 +813,12 @@
       document.getElementById('player-modal').classList.remove('hidden');
     }
 
-    function openEditModal(playerId) {
+    function openEditModal(playerKey) {
       if (!isAdmin) return;
-      const p = roster.find(item => item.id === playerId);
+      const p = roster.find(item => getPlayerKey(item) === String(playerKey));
       if (!p) return;
 
-      document.getElementById('edit-player-id').value = p.id;
+      document.getElementById('edit-player-id').value = getPlayerKey(p);
       document.getElementById('inp-name').value = p.name;
       document.getElementById('inp-no').value = p.no;
       document.getElementById('inp-pos').value = p.pos;
@@ -815,7 +840,7 @@
     function handleSavePlayer(e) {
       e.preventDefault();
       if (!isAdmin) return;
-      const editId = document.getElementById('edit-player-id').value;
+      const editKey = document.getElementById('edit-player-id').value;
       const name = document.getElementById('inp-name').value.trim();
       const no = document.getElementById('inp-no').value.trim();
       const pos = document.getElementById('inp-pos').value;
@@ -823,7 +848,7 @@
       const birth = document.getElementById('inp-birth').value;
       const phone = document.getElementById('inp-phone').value.trim();
 
-      const duplicate = roster.find(p => p.no == no && p.id != editId);
+      const duplicate = roster.find(p => String(p.no) === String(no) && getPlayerKey(p) !== String(editKey));
       if (duplicate) {
         alert(`이미 ${duplicate.name} 선수가 [${no}번]을 사용 중입니다.`);
         return;
@@ -835,8 +860,8 @@
       else if (pos === '내야수') defaultPos = 'SS';
       else if (pos === '외야수') defaultPos = 'CF';
 
-      if (editId) {
-        const p = roster.find(item => item.id == editId);
+      if (editKey) {
+        const p = roster.find(item => getPlayerKey(item) === String(editKey));
         if (p) {
           p.name = name;
           p.no = no;
@@ -846,7 +871,7 @@
           p.phone = phone;
           p.defaultPos = defaultPos;
 
-          const inL = lineup.find(l => l.id == editId);
+          const inL = lineup.find(l => getPlayerKey(l) === String(editKey));
           if (inL) {
             inL.name = name;
             inL.no = no;
@@ -854,7 +879,7 @@
         }
       } else {
         roster.push({
-          id: Date.now(),
+          id: 'p_' + Date.now(),
           no: no,
           name: name,
           pos: pos,
@@ -872,13 +897,13 @@
 
     function handleDeletePlayer() {
       if (!isAdmin) return;
-      const editId = document.getElementById('edit-player-id').value;
-      if (!editId) return;
+      const editKey = document.getElementById('edit-player-id').value;
+      if (!editKey) return;
 
       if (!confirm("선수를 완전히 삭제하시겠습니까?")) return;
 
-      roster = roster.filter(p => p.id != editId);
-      lineup = lineup.filter(p => p.id != editId);
+      roster = roster.filter(p => getPlayerKey(p) !== String(editKey));
+      lineup = lineup.filter(p => getPlayerKey(p) !== String(editKey));
 
       closeModal();
       updateViews();
@@ -886,7 +911,20 @@
     }
 
     function sortLineupByPosition() {
-      const posOrder = { 'P': 1, 'SP': 1, 'RP': 1, 'C': 2, '1B': 3, '2B': 4, '3B': 5, 'SS': 6, 'LF': 7, 'CF': 8, 'RF': 9, 'DH': 10, '-': 11 };
+      const posOrder = {
+        'C': 1,
+        '1B': 2,
+        '2B': 3,
+        '3B': 4,
+        'SS': 5,
+        'LF': 6,
+        'CF': 7,
+        'RF': 8,
+        'P': 9, 'SP': 9, 'RP': 9,
+        'P(only)': 10,
+        'DH': 11,
+        '-': 12
+      };
       
       lineup.sort((a, b) => {
         const isSubA = a.orderPos === 'SUB';
@@ -895,7 +933,7 @@
         if (isSubA && !isSubB) return 1;
         if (!isSubA && isSubB) return -1;
         if (isSubA && isSubB) {
-          return a.name.localeCompare(b.name, 'ko');
+          return (a.name || '').localeCompare(b.name || '', 'ko');
         }
 
         const wA = posOrder[a.orderPos] || 99;
@@ -904,84 +942,54 @@
       });
     }
 
-    function togglePlayerInLineup(playerId) {
+    function togglePlayerInLineup(playerKey) {
       if (!isAdmin) return;
-      const player = roster.find(p => p.id === playerId);
+      const player = roster.find(p => getPlayerKey(p) === String(playerKey));
       if (!player) return;
 
-      const idx = lineup.findIndex(l => l.id === player.id);
+      const idx = lineup.findIndex(l => getPlayerKey(l) === String(playerKey));
       if (idx === -1) {
+        // C - 1B - 2B - 3B - SS - LF - CF - RF - P 순서로 자동 채우기
+        const fillSequence = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'P'];
+        let assignedPos = '-';
+        for (let pos of fillSequence) {
+          let isOccupied = lineup.some(l => l.orderPos === pos || (pos === 'P' && l.orderPos === 'P(only)'));
+          if (!isOccupied) {
+            assignedPos = pos;
+            break;
+          }
+        }
         lineup.push({
           ...player,
-          orderPos: '-'
+          orderPos: assignedPos
         });
+      } else {
+        lineup.splice(idx, 1);
       }
       sortLineupByPosition();
       updateViews();
       syncToServer();
     }
 
-    function renderLineup() {
-      const container = document.getElementById('lineup-container');
-      const countEl = document.getElementById('lineup-count');
-      countEl.innerText = lineup.length;
-
-      if (lineup.length === 0) {
-        container.innerHTML = `
-          <div class="h-full flex flex-col items-center justify-center text-center py-20 text-slate-500 text-xs">
-            <p class="font-bold text-slate-400 text-sm">선수를 출전 명단에 올려주세요</p>
-            <p class="text-xs text-slate-600 mt-1.5">${isAdmin ? '좌측 선수명단에서 [+]를 누르면 타순에 추가됩니다.' : '관리자 모드가 활성화되면 선수를 배치할 수 있습니다.'}</p>
-          </div>
-        `;
-        return;
-      }
-
-      container.innerHTML = '';
-      let battingCount = 0;
-
-      lineup.forEach((player, i) => {
-        const isSub = player.orderPos === 'SUB';
-        const isDash = player.orderPos === '-';
-        let orderDisplay = '-';
-        if (!isSub && !isDash) {
-          battingCount++;
-          orderDisplay = battingCount;
-        }
-
-        const row = document.createElement('div');
-        row.className = `card-item p-3 rounded-xl flex items-center gap-2.5 border shadow-sm ${isSub ? 'border-slate-800/80 bg-[#12151b]' : 'border-slate-800'}`;
-        
-        let controlsHtml = '';
-        if (isAdmin) {
-          controlsHtml = `
-            <select onchange="changePos(${i}, this.value)" class="input-field text-xs font-black px-2.5 py-1.5 rounded-lg bg-[#0b0d11] ${isSub ? 'border-slate-700 text-slate-400' : ''}" style="${!isSub ? 'border-color: rgba(223,177,91,0.4); color: var(--gold);' : ''}">
-              ${LINEUP_POSITIONS.map(pos => `<option value="${pos}" ${player.orderPos === pos ? 'selected' : ''}>${pos}</option>`).join('')}
-            </select>
-            <div class="flex gap-1 shrink-0">
-              <button onclick="moveOrder(${i}, -1)" class="w-7 h-7 bg-slate-800 text-slate-300 hover:text-white rounded flex items-center justify-center text-xs font-bold">▲</button>
-              <button onclick="moveOrder(${i}, 1)" class="w-7 h-7 bg-slate-800 text-slate-300 hover:text-white rounded flex items-center justify-center text-xs font-bold">▼</button>
-              <button onclick="removeOrder(${i})" class="w-7 h-7 bg-rose-950/60 text-rose-300 hover:bg-rose-900 rounded flex items-center justify-center text-xs font-bold" title="타순에서 제외 (-)">-</button>
-            </div>
-          `;
-        } else {
-          controlsHtml = `
-            <span class="text-xs font-bold px-3 py-1 rounded bg-black" style="border: 1px solid rgba(223,177,91,0.4); color: var(--gold);">${player.orderPos}</span>
-          `;
-        }
-
-        row.innerHTML = `
-          <span class="w-6 text-center font-black text-sm" style="color: ${isSub || isDash ? '#64748b' : 'var(--gold)'};">${orderDisplay}</span>
-          <span class="w-9 text-center font-mono font-black text-xs text-slate-300 bg-slate-950 py-1 rounded border border-slate-800">${player.no}</span>
-          <span class="flex-1 font-bold text-sm ${isSub ? 'text-slate-400' : 'text-white'} pl-1 truncate">${player.name}</span>
-          ${controlsHtml}
-        `;
-        container.appendChild(row);
-      });
-    }
-
     function changePos(idx, newPos) {
       if (!isAdmin) return;
+      const oldPos = lineup[idx].orderPos;
+      
+      // -, SUB가 아니면 기존에 해당 포지션 있는 사람과 스왑
+      if (newPos !== '-' && newPos !== 'SUB') {
+        const existingIdx = lineup.findIndex((p, i) => {
+          if (i === idx) return false;
+          if (p.orderPos === newPos) return true;
+          if ((newPos === 'P' || newPos === 'P(only)') && (p.orderPos === 'P' || p.orderPos === 'P(only)')) return true;
+          return false;
+        });
+        if (existingIdx !== -1) {
+          lineup[existingIdx].orderPos = oldPos;
+        }
+      }
+      
       lineup[idx].orderPos = newPos;
+      
       sortLineupByPosition();
       updateViews();
       syncToServer();
@@ -1044,7 +1052,7 @@
         { id: 'svg-slot-2B', matches: ['2B'], label: '2B' },
         { id: 'svg-slot-3B', matches: ['3B'], label: '3B' },
         { id: 'svg-slot-1B', matches: ['1B'], label: '1B' },
-        { id: 'svg-slot-P',  matches: ['P', 'SP', 'RP'], label: 'P' },
+        { id: 'svg-slot-P',  matches: ['P', 'SP', 'RP', 'P(only)'], label: 'P' },
         { id: 'svg-slot-C',  matches: ['C'], label: 'C' }
       ];
 
@@ -1055,11 +1063,12 @@
         const assigned = lineup.find(p => slot.matches.includes(p.orderPos));
 
         if (assigned) {
+          const displayPos = assigned.orderPos === 'P(only)' ? 'P' : assigned.orderPos;
           el.innerHTML = `
             <circle cx="29" cy="10" r="10" fill="#000000" stroke="var(--gold)" stroke-width="1.2"/>
             <text x="29" y="13.5" fill="var(--gold)" font-size="10" font-weight="900" text-anchor="middle">${assigned.no}</text>
             <rect x="0" y="19" width="58" height="30" rx="3" fill="#000000" stroke="var(--gold)" stroke-width="1.2"/>
-            <text x="29" y="30" fill="var(--gold)" font-size="9" font-weight="900" text-anchor="middle">${assigned.orderPos}</text>
+            <text x="29" y="30" fill="var(--gold)" font-size="9" font-weight="900" text-anchor="middle">${displayPos}</text>
             <text x="29" y="42" fill="#ffffff" font-size="10" font-weight="900" text-anchor="middle">${assigned.name}</text>
           `;
         } else {
@@ -1076,37 +1085,46 @@
       const tableGrid = document.getElementById('order-table-grid');
       tableGrid.innerHTML = '';
 
-      const regularBatters = lineup.filter(p => p.orderPos !== 'SUB' && p.orderPos !== '-');
+      // P(only) 선수는 오른쪽 후보가 아니라 왼쪽 열의 10번째 줄(9번 타자 바로 밑)에 배치
+      const regularBatters = lineup.filter(p => p.orderPos !== 'SUB' && p.orderPos !== '-' && p.orderPos !== 'P(only)');
+      const pOnlyPlayer = lineup.find(p => p.orderPos === 'P(only)');
       const subPlayers = lineup.filter(p => p.orderPos === 'SUB' || p.orderPos === '-');
 
       const col1 = [];
       const col2 = [];
 
       for (let i = 0; i < 10; i++) {
-        const p = regularBatters[i];
-        if (p) {
-          col1.push({ order: i + 1, name: p.name, pos: p.orderPos, isSub: false });
-        } else {
-          col1.push({ order: '', name: '', pos: '', isSub: false });
-        }
+        col1.push({ order: '', name: '', pos: '', isSub: false });
+        col2.push({ order: '', name: '', pos: '', isSub: true });
       }
 
-      for (let i = 0; i < 10; i++) {
+      // 1번 ~ 9번 타자 배치
+      let batOrder = 1;
+      for (let i = 0; i < regularBatters.length && i < 9; i++) {
+        const p = regularBatters[i];
+        col1[i] = { order: batOrder++, name: p.name, pos: p.orderPos, isSub: false };
+      }
+
+      // 10번째 칸(9번 타자 바로 밑): P(only) 선수가 있다면 P로 배치, 없는데 10번째 타자가 있다면 10번 타자 배치
+      if (pOnlyPlayer) {
+        col1[9] = { order: 'P', name: pOnlyPlayer.name, pos: 'P', isSub: false };
+      } else if (regularBatters[9]) {
+        col1[9] = { order: batOrder++, name: regularBatters[9].name, pos: regularBatters[9].orderPos, isSub: false };
+      }
+
+      // 오른쪽 칸: 순수 대기/후보 선수 (SUB, -)만 위에서부터 순서대로 배치
+      for (let i = 0; i < subPlayers.length && i < 10; i++) {
         const p = subPlayers[i];
-        if (p) {
-          col2.push({ order: '-', name: p.name, pos: p.orderPos === '-' ? '-' : 'SUB', isSub: true });
-        } else {
-          col2.push({ order: '', name: '', pos: '', isSub: true });
-        }
+        col2[i] = { order: '-', name: p.name, pos: p.orderPos === '-' ? '-' : 'SUB', isSub: true };
       }
 
       let col1Html = `<div class="space-y-[2px]">`;
       col1.forEach(item => {
         col1Html += `
           <div class="grid grid-cols-12 text-sm bg-[#0a0a0a] text-center font-bold h-[34px] items-center" style="border: 1px solid rgba(223,177,91,0.4);">
-            <span class="col-span-2 leading-none" style="color: var(--gold); border-right: 1px solid rgba(223,177,91,0.4);">${item.order}</span>
+            <span class="col-span-2 ${item.name ? '' : 'text-transparent'} leading-none" style="color: var(--gold); border-right: 1px solid rgba(223,177,91,0.4);">${item.order}</span>
             <span class="col-span-7 text-white truncate px-1.5 text-xs md:text-sm leading-none text-left pl-2.5 font-extrabold" style="border-right: 1px solid rgba(223,177,91,0.4);">${item.name}</span>
-            <span class="col-span-3 text-xs leading-none font-extrabold" style="color: var(--gold);">${item.pos}</span>
+            <span class="col-span-3 ${item.name ? '' : 'text-transparent'} text-xs leading-none font-extrabold" style="color: var(--gold);">${item.pos}</span>
           </div>
         `;
       });
@@ -1146,7 +1164,7 @@
         if (type === 'num') {
           return parseInt(a.no, 10) - parseInt(b.no, 10);
         } else if (type === 'name') {
-          return a.name.localeCompare(b.name, 'ko');
+          return (a.name || '').localeCompare(b.name || '', 'ko');
         } else if (type === 'pos') {
           const pA = posPriority[a.pos] || 99;
           const pB = posPriority[b.pos] || 99;
@@ -1164,11 +1182,10 @@
         renderRoster(null);
         return;
       }
-      const filtered = roster.filter(p => p.name.includes(query) || p.no.includes(query));
+      const filtered = roster.filter(p => (p.name && p.name.includes(query)) || (p.no && String(p.no).includes(query)));
       renderRoster(filtered);
     }
 
-    // 초기 실행 시 권한 상태 반영
     checkAdminMode();
     renderGameInfoPreview();
   </script>
