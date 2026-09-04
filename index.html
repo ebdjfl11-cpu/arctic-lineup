@@ -687,11 +687,12 @@
       displayList.forEach(player => {
         const pKey = getPKey(player);
         const hideLineupStatus = !isAdmin && gameInfo.isUnreleased;
-        const inLineup = !hideLineupStatus && lineup.some(l => getPKey(l) === pKey);
+        const inLineup = lineup.some(l => getPKey(l) === pKey);
+        const isActuallyInLineup = !hideLineupStatus && inLineup;
         
         const card = document.createElement('div');
-        card.className = `card-item p-2.5 rounded-xl flex items-center justify-between gap-2 transition ${inLineup ? 'bg-[#1e2430]' : 'hover:border-slate-600'}`;
-        if (inLineup) card.style.borderColor = 'rgba(223,177,91,0.5)';
+        card.className = `card-item p-2.5 rounded-xl flex items-center justify-between gap-2 transition ${isActuallyInLineup ? 'bg-[#1e2430]' : 'hover:border-slate-600'}`;
+        if (isActuallyInLineup) card.style.borderColor = 'rgba(223,177,91,0.5)';
 
         const hasRole = player.role && player.role !== '일반';
 
@@ -716,7 +717,7 @@
         actionDiv.className = 'flex items-center gap-1 shrink-0';
 
         if (isAdmin) {
-          const actualInLineup = lineup.some(l => getPKey(l) === pKey);
+          const actualInLineup = inLineup;
           const toggleBtn = document.createElement('button');
           toggleBtn.className = `w-7 h-7 rounded text-xs font-black transition flex items-center justify-center ${actualInLineup ? 'shadow' : 'bg-slate-800 text-white hover:bg-slate-700'}`;
           if (actualInLineup) {
@@ -755,8 +756,9 @@
           actionDiv.appendChild(delBtn);
         } else {
           const badge = document.createElement('span');
-          badge.className = 'text-[10px] font-bold px-2 py-1 rounded text-slate-400 bg-slate-800';
-          badge.innerText = '미출전';
+          badge.className = `text-[10px] font-bold px-2 py-1 rounded ${isActuallyInLineup ? 'text-black' : 'text-slate-400 bg-slate-800'}`;
+          if (isActuallyInLineup) badge.style.backgroundColor = 'var(--gold)';
+          badge.innerText = isActuallyInLineup ? '출전' : '미출전';
           actionDiv.appendChild(badge);
         }
 
