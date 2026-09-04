@@ -564,12 +564,14 @@
         }
         if (data.gameInfo) {
           gameInfo = data.gameInfo;
+          // 불리언 변환 강화
+          gameInfo.isUnreleased = Boolean(gameInfo.isUnreleased && gameInfo.isUnreleased !== 'false' && gameInfo.isUnreleased !== '0');
           document.getElementById('game-myteam').value = gameInfo.myTeam || '';
           document.getElementById('game-opponent').value = gameInfo.opp || '';
           document.getElementById('game-date').value = gameInfo.date || '';
           document.getElementById('game-time').value = gameInfo.time || '';
           document.getElementById('game-place').value = gameInfo.place || '';
-          document.getElementById('game-unreleased').checked = !!gameInfo.isUnreleased;
+          document.getElementById('game-unreleased').checked = gameInfo.isUnreleased;
         }
         updateViews();
         renderGameInfoPreview();
@@ -686,9 +688,10 @@
 
       displayList.forEach(player => {
         const pKey = getPKey(player);
-        const hideLineupStatus = !isAdmin && gameInfo.isUnreleased;
+        const isUnreleased = Boolean(gameInfo.isUnreleased && gameInfo.isUnreleased !== 'false');
         const inLineup = lineup.some(l => getPKey(l) === pKey);
-        const isActuallyInLineup = !hideLineupStatus && inLineup;
+        // 미공개 상태면 일반 사용자에게는 무조건 미출전(false) 처리
+        const isActuallyInLineup = isAdmin ? inLineup : (!isUnreleased && inLineup);
         
         const card = document.createElement('div');
         card.className = `card-item p-2.5 rounded-xl flex items-center justify-between gap-2 transition ${isActuallyInLineup ? 'bg-[#1e2430]' : 'hover:border-slate-600'}`;
@@ -717,10 +720,9 @@
         actionDiv.className = 'flex items-center gap-1 shrink-0';
 
         if (isAdmin) {
-          const actualInLineup = inLineup;
           const toggleBtn = document.createElement('button');
-          toggleBtn.className = `w-7 h-7 rounded text-xs font-black transition flex items-center justify-center ${actualInLineup ? 'shadow' : 'bg-slate-800 text-white hover:bg-slate-700'}`;
-          if (actualInLineup) {
+          toggleBtn.className = `w-7 h-7 rounded text-xs font-black transition flex items-center justify-center ${inLineup ? 'shadow' : 'bg-slate-800 text-white hover:bg-slate-700'}`;
+          if (inLineup) {
             toggleBtn.style.backgroundColor = 'var(--gold)';
             toggleBtn.style.color = '#000000';
             toggleBtn.innerText = '✓';
@@ -782,8 +784,8 @@
       const p = roster.find(item => getPKey(item) === String(playerKey));
       if (!p) return;
 
-      const hideLineupStatus = !isAdmin && gameInfo.isUnreleased;
-      const inLineupPlayer = !hideLineupStatus ? lineup.find(l => getPKey(l) === getPKey(p)) : null;
+      const isUnreleased = Boolean(gameInfo.isUnreleased && gameInfo.isUnreleased !== 'false');
+      const inLineupPlayer = (isAdmin || !isUnreleased) ? lineup.find(l => getPKey(l) === getPKey(p)) : null;
 
       document.getElementById('info-badge-no').innerText = p.no;
       document.getElementById('info-name').innerText = p.name;
@@ -1183,7 +1185,8 @@
       const fieldBox = document.getElementById('preview-field-box');
       const tableGrid = document.getElementById('order-table-grid');
 
-      if (!isAdmin && gameInfo.isUnreleased) {
+      const isUnreleased = Boolean(gameInfo.isUnreleased && gameInfo.isUnreleased !== 'false');
+      if (!isAdmin && isUnreleased) {
         if (fieldBox) {
           fieldBox.innerHTML = `
             <div class="flex flex-col items-center justify-center w-full h-full text-center bg-black">
