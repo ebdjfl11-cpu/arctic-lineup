@@ -69,18 +69,24 @@
     ::-webkit-scrollbar-thumb { background: #262c37; border-radius: 4px; }
   </style>
 </head>
-<body class="text-slate-200 p-3 md:p-5 min-h-screen">
+<body class="text-slate-200 p-2 md:p-3 min-h-screen">
   <!-- 상단 관리자 모드 토글 버튼 (우측 상단 고정) -->
-  <div class="max-w-[1880px] mx-auto flex justify-end mb-2 px-1">
+  <div class="max-w-[1550px] mx-auto flex justify-end mb-1.5 px-1">
     <button id="admin-mode-btn" onclick="toggleAdminMode()" class="text-[11px] bg-slate-800 text-slate-300 font-bold px-3 py-1.5 rounded-lg hover:text-white transition shadow border border-slate-700">
       🔒 관리자 모드
     </button>
   </div>
 
-  <div class="max-w-[1880px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 h-[910px]">
+  <!-- 모바일 전용 최상단 탭 전환 메뉴 (관리자 모드 아닐 때 모바일에서만 노출) -->
+  <div id="mobile-mode-tabs" class="max-w-[1550px] mx-auto flex lg:hidden gap-2 mb-3 px-1">
+    <button id="m-tab-roster" onclick="switchMobileView('roster')" class="flex-1 py-2.5 rounded-xl font-black text-xs shadow transition text-center" style="background-color: var(--gold); color: #000000;">로스터</button>
+    <button id="m-tab-lineup" onclick="switchMobileView('lineup')" class="flex-1 py-2.5 rounded-xl font-bold text-xs shadow transition text-center bg-slate-800 text-slate-400">라인업</button>
+  </div>
+
+  <div id="main-container" class="max-w-[1550px] mx-auto flex flex-wrap justify-center items-start gap-3">
 
     <!-- [COLUMN 1] ROSTER / 선수 명단 & 배번 현황 -->
-    <div class="lg:col-span-3 panel-bg rounded-2xl p-4 flex flex-col h-full">
+    <div id="col-roster" class="w-full lg:w-[450px] panel-bg rounded-2xl p-4 flex flex-col h-[880px] shrink-0">
       <div class="flex justify-between items-center mb-3">
         <div>
           <div class="flex items-center gap-2">
@@ -114,57 +120,57 @@
 
       <div id="numbers-tab-view" class="flex flex-col flex-1 min-h-0 hidden">
         <div class="flex justify-between items-center mb-2 px-1 text-[11px] text-slate-400">
-          <span>0번 ~ 99번 배번 현황판</span>
+          <span>0번 ~ 99번 배번 현황판 (10열 배치)</span>
           <span class="font-bold" style="color: var(--gold);" id="assigned-num-count">0명 배정됨</span>
         </div>
-        <div class="flex-1 overflow-y-auto bg-black border border-slate-800 rounded-xl p-2.5">
-          <div id="number-board-grid" class="grid grid-cols-10 gap-x-1 gap-y-2.5 text-center select-none"></div>
+        <div class="flex-1 overflow-y-auto bg-black border border-slate-800 rounded-xl p-2">
+          <div id="number-board-grid" class="grid grid-cols-10 gap-1 text-center select-none"></div>
         </div>
       </div>
     </div>
 
-    <!-- [COLUMN 2] GAME & BATTING ORDER -->
-    <div class="lg:col-span-4 panel-bg rounded-2xl p-5 flex flex-col h-full overflow-hidden">
-      <div class="border-b border-slate-800 pb-4 mb-4 shrink-0">
-        <div class="flex justify-between items-center mb-2.5">
+    <!-- [COLUMN 2] GAME & BATTING ORDER (관리자 모드일 때만 표시) -->
+    <div id="col-game-order" class="w-full lg:w-[440px] panel-bg rounded-2xl p-4 flex flex-col h-[880px] overflow-hidden hidden shrink-0">
+      <div class="border-b border-slate-800 pb-3 mb-3 shrink-0">
+        <div class="flex justify-between items-center mb-2">
           <span class="text-xs font-black tracking-wider" style="color: var(--gold);">MATCH INFO</span>
-          <span id="match-info-badge" class="text-[11px] text-slate-500">공유 전용 화면</span>
+          <span class="text-[11px] text-slate-500">관리자 전용 설정</span>
         </div>
 
-        <div class="grid grid-cols-2 gap-2.5 mb-2.5">
+        <div class="grid grid-cols-2 gap-2 mb-2">
           <div>
             <label class="text-[11px] text-slate-400 block mb-1">우리팀</label>
-            <input type="text" id="game-myteam" value="ARCTIC BASEBALL CLUB" oninput="debounceSaveGameInfo()" class="w-full input-field px-3 py-1.5 rounded-lg text-xs font-bold match-input" disabled>
+            <input type="text" id="game-myteam" value="ARCTIC BASEBALL CLUB" oninput="debounceSaveGameInfo()" class="w-full input-field px-3 py-1.5 rounded-lg text-xs font-bold match-input">
           </div>
           <div>
             <label class="text-[11px] text-slate-400 block mb-1">상대팀</label>
-            <input type="text" id="game-opponent" placeholder="상대팀명 입력" oninput="debounceSaveGameInfo()" class="w-full input-field px-3 py-1.5 rounded-lg text-xs font-bold match-input" disabled>
+            <input type="text" id="game-opponent" placeholder="상대팀명 입력" oninput="debounceSaveGameInfo()" class="w-full input-field px-3 py-1.5 rounded-lg text-xs font-bold match-input">
           </div>
         </div>
 
         <div class="grid grid-cols-3 gap-2">
           <div>
             <label class="text-[11px] text-slate-400 block mb-1">경기일</label>
-            <input type="text" id="game-date" placeholder="2026.08.29" maxlength="10" oninput="handleDateInput(event); debounceSaveGameInfo();" class="w-full input-field px-2 py-1.5 rounded-lg text-xs text-center font-semibold match-input" disabled>
+            <input type="text" id="game-date" placeholder="2026.08.29" maxlength="10" oninput="handleDateInput(event); debounceSaveGameInfo();" class="w-full input-field px-2 py-1.5 rounded-lg text-xs text-center font-semibold match-input">
           </div>
           <div>
             <label class="text-[11px] text-slate-400 block mb-1">시간</label>
-            <input type="text" id="game-time" placeholder="07:00" oninput="debounceSaveGameInfo()" class="w-full input-field px-2 py-1.5 rounded-lg text-xs text-center font-semibold match-input" disabled>
+            <input type="text" id="game-time" placeholder="07:00" oninput="debounceSaveGameInfo()" class="w-full input-field px-2 py-1.5 rounded-lg text-xs text-center font-semibold match-input">
           </div>
           <div>
             <label class="text-[11px] text-slate-400 block mb-1">구장</label>
-            <input type="text" id="game-place" placeholder="송도랜드마크야구장" oninput="debounceSaveGameInfo()" class="w-full input-field px-2.5 py-1.5 rounded-lg text-xs font-bold match-input" disabled>
+            <input type="text" id="game-place" placeholder="송도랜드마크야구장" oninput="debounceSaveGameInfo()" class="w-full input-field px-2.5 py-1.5 rounded-lg text-xs font-bold match-input">
           </div>
         </div>
       </div>
 
       <div class="flex-1 flex flex-col min-h-0">
-        <div class="flex justify-between items-center mb-2.5 shrink-0">
+        <div class="flex justify-between items-center mb-2 shrink-0">
           <div class="flex items-center gap-2">
             <span class="text-xs font-black tracking-wider" style="color: var(--gold);">BATTING ORDER</span>
             <span id="lineup-count" class="text-xs font-extrabold px-2.5 py-0.5 rounded-full" style="background-color: rgba(223,177,91,0.15); color: var(--gold);">0</span>
           </div>
-          <button id="btn-clear-lineup" onclick="clearLineup()" class="text-xs text-slate-400 hover:text-rose-400 font-semibold transition admin-only hidden">전체 비우기</button>
+          <button id="btn-clear-lineup" onclick="clearLineup()" class="text-xs text-slate-400 hover:text-rose-400 font-semibold transition admin-only">전체 비우기</button>
         </div>
 
         <div id="lineup-container" class="flex-1 rounded-xl border border-dashed border-slate-800 p-2 overflow-y-auto space-y-2">
@@ -177,75 +183,63 @@
     </div>
 
     <!-- [COLUMN 3] PREVIEW / 야구장 공유 보드 -->
-    <div class="lg:col-span-5 panel-bg rounded-2xl p-4 flex flex-col h-full overflow-hidden">
-      <div class="flex justify-between items-center mb-2 shrink-0">
-        <div>
-          <span class="text-xs font-black tracking-wider block" style="color: var(--gold);">LINEUP CARD</span>
-          <h2 class="text-base font-bold text-white">공유 보드 미리보기</h2>
+    <div id="col-preview" class="w-full lg:w-[560px] panel-bg rounded-2xl p-2.5 flex flex-col shrink-0">
+      <div id="capture-card" class="w-full bg-black rounded-xl p-2.5 flex flex-col gap-1 shadow-2xl relative select-none" style="border: 1px solid rgba(223,177,91,0.4);">
+        
+        <!-- 헤더 영역 -->
+        <div class="shrink-0 pb-1 pt-0" style="border-bottom: 1px solid rgba(223,177,91,0.4);">
+          <div class="flex justify-between items-start">
+            <div>
+              <h1 class="text-3xl font-black italic tracking-tighter drop-shadow-md leading-none" style="color: var(--gold);">LINE UP</h1>
+              <p id="prev-myteam" class="text-xs font-black text-slate-300 tracking-[0.2em] mt-0.5 uppercase">ARCTIC BASEBALL CLUB</p>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="px-2 py-0.5 font-black text-xs rounded leading-tight shadow" style="background-color: var(--gold); color: #000000;">VS</span>
+                <span id="prev-match" class="text-sm font-black text-white tracking-wide">상대팀 미정</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3 mt-1 text-[11px] font-bold pt-1 border-t border-slate-800/80">
+            <span id="prev-date" class="text-white tracking-wider font-extrabold">2026.08.29 (토) 07:00</span>
+            <span class="font-bold" style="color: var(--gold);">|</span>
+            <span id="prev-place" class="text-slate-200 tracking-wide">송도랜드마크야구장</span>
+          </div>
         </div>
-      </div>
 
-      <div class="flex-1 flex items-center justify-center overflow-hidden p-1">
-        <div id="capture-card" class="w-full bg-black rounded-2xl p-2.5 flex flex-col gap-1.5 shadow-2xl relative select-none" style="border: 1px solid rgba(223,177,91,0.4);">
-          
-          <!-- 헤더 영역 -->
-          <div class="shrink-0 pb-1.5 pt-0.5" style="border-bottom: 1px solid rgba(223,177,91,0.4);">
-            <div class="flex justify-between items-start">
-              <div>
-                <h1 class="text-4xl font-black italic tracking-tighter drop-shadow-md leading-none" style="color: var(--gold);">LINE UP</h1>
-                <p id="prev-myteam" class="text-xs font-black text-slate-300 tracking-[0.2em] mt-1 uppercase">ARCTIC BASEBALL CLUB</p>
-                <div class="flex items-center gap-2 mt-1">
-                  <span class="px-2 py-0.5 font-black text-xs rounded leading-tight shadow" style="background-color: var(--gold); color: #000000;">VS</span>
-                  <span id="prev-match" class="text-base font-black text-white tracking-wide">상대팀 미정</span>
-                </div>
-              </div>
-              <div class="w-14 h-14 rounded-lg overflow-hidden shadow shrink-0 flex items-center justify-center bg-black">
-                <img src="https://i.ibb.co/68v4H96/arctic-logo.jpg" alt="Team Logo" class="w-full h-full object-cover" crossorigin="anonymous">
-              </div>
-            </div>
+        <!-- 야구장 필드 -->
+        <div class="relative w-full my-0 flex items-center justify-center overflow-hidden shrink-0" style="height: 305px;">
+          <svg class="w-full h-full" viewBox="25 0 410 305" preserveAspectRatio="xMidYMid meet">
+            <g transform="translate(0, -45)">
+              <path d="M 50 135 A 235 235 0 0 1 410 135" stroke="var(--gold)" stroke-width="1.6" fill="none"/>
+              <line x1="230" y1="315" x2="50" y2="135" stroke="var(--gold)" stroke-width="1.6"/>
+              <line x1="230" y1="315" x2="410" y2="135" stroke="var(--gold)" stroke-width="1.6"/>
+              <polygon points="230,154 298,228 230,302 162,228" stroke="var(--gold)" stroke-width="1.8" fill="#000000"/>
+              <rect x="226" y="150" width="8" height="8" fill="var(--gold)" transform="rotate(45 230 154)"/>
+              <rect x="294" y="224" width="8" height="8" fill="var(--gold)" transform="rotate(45 298 228)"/>
+              <rect x="158" y="224" width="8" height="8" fill="var(--gold)" transform="rotate(45 162 228)"/>
+              <circle cx="230" cy="228" r="14" stroke="var(--gold-dark)" stroke-width="1.2" fill="#000000"/>
+              <rect x="226" y="226.5" width="8" height="3" fill="#ffffff"/>
+              <polygon points="230,297 234,302 234,307 226,307 226,302" fill="#ffffff"/>
 
-            <div class="flex items-center gap-3 mt-1 text-xs font-bold pt-1 border-t border-slate-800/80">
-              <span id="prev-date" class="text-white tracking-wider text-xs font-extrabold">2026.08.29 (토) 07:00</span>
-              <span class="font-bold" style="color: var(--gold);">|</span>
-              <span id="prev-place" class="text-slate-200 tracking-wide text-xs">송도랜드마크야구장</span>
-            </div>
+              <g id="svg-slot-CF" transform="translate(201, 48)"></g>
+              <g id="svg-slot-LF" transform="translate(80, 94)"></g>
+              <g id="svg-slot-RF" transform="translate(322, 94)"></g>
+              <g id="svg-slot-SS" transform="translate(144, 132)"></g>
+              <g id="svg-slot-2B" transform="translate(258, 132)"></g>
+              <g id="svg-slot-3B" transform="translate(96, 200)"></g>
+              <g id="svg-slot-1B" transform="translate(306, 200)"></g>
+              <g id="svg-slot-P"  transform="translate(201, 202)"></g>
+              <g id="svg-slot-C"  transform="translate(201, 284)"></g>
+            </g>
+          </svg>
+        </div>
+
+        <!-- 20칸 배팅 오더 고정 테이블 -->
+        <div class="shrink-0 pt-1.5" style="border-top: 1px solid rgba(223,177,91,0.4);">
+          <div class="text-center mb-0.5">
+            <span class="text-[10px] font-black italic tracking-wider" style="color: var(--gold);">Betting Order</span>
           </div>
-
-          <!-- 야구장 필드 -->
-          <div class="relative w-full my-0 flex items-center justify-center overflow-hidden shrink-0" style="height: 310px;">
-            <svg class="w-full h-full" viewBox="25 0 410 305" preserveAspectRatio="xMidYMid meet">
-              <g transform="translate(0, -45)">
-                <path d="M 50 135 A 235 235 0 0 1 410 135" stroke="var(--gold)" stroke-width="1.6" fill="none"/>
-                <line x1="230" y1="315" x2="50" y2="135" stroke="var(--gold)" stroke-width="1.6"/>
-                <line x1="230" y1="315" x2="410" y2="135" stroke="var(--gold)" stroke-width="1.6"/>
-                <polygon points="230,154 298,228 230,302 162,228" stroke="var(--gold)" stroke-width="1.8" fill="#000000"/>
-                <rect x="226" y="150" width="8" height="8" fill="var(--gold)" transform="rotate(45 230 154)"/>
-                <rect x="294" y="224" width="8" height="8" fill="var(--gold)" transform="rotate(45 298 228)"/>
-                <rect x="158" y="224" width="8" height="8" fill="var(--gold)" transform="rotate(45 162 228)"/>
-                <circle cx="230" cy="228" r="14" stroke="var(--gold-dark)" stroke-width="1.2" fill="#000000"/>
-                <rect x="226" y="226.5" width="8" height="3" fill="#ffffff"/>
-                <polygon points="230,297 234,302 234,307 226,307 226,302" fill="#ffffff"/>
-
-                <g id="svg-slot-CF" transform="translate(201, 48)"></g>
-                <g id="svg-slot-LF" transform="translate(80, 94)"></g>
-                <g id="svg-slot-RF" transform="translate(322, 94)"></g>
-                <g id="svg-slot-SS" transform="translate(144, 132)"></g>
-                <g id="svg-slot-2B" transform="translate(258, 132)"></g>
-                <g id="svg-slot-3B" transform="translate(96, 200)"></g>
-                <g id="svg-slot-1B" transform="translate(306, 200)"></g>
-                <g id="svg-slot-P"  transform="translate(201, 202)"></g>
-                <g id="svg-slot-C"  transform="translate(201, 284)"></g>
-              </g>
-            </svg>
-          </div>
-
-          <!-- 20칸 배팅 오더 고정 테이블 -->
-          <div class="shrink-0 pt-2" style="border-top: 1px solid rgba(223,177,91,0.4);">
-            <div class="text-center mb-0.5">
-              <span class="text-[11px] font-black italic tracking-wider" style="color: var(--gold);">Betting Order</span>
-            </div>
-            <div id="order-table-grid" class="grid grid-cols-2 gap-x-2 p-1 bg-black" style="border: 1px solid rgba(223,177,91,0.6);"></div>
-          </div>
+          <div id="order-table-grid" class="grid grid-cols-2 gap-x-2 p-0.5 bg-black" style="border: 1px solid rgba(223,177,91,0.6);"></div>
         </div>
       </div>
     </div>
@@ -360,32 +354,98 @@
   <script>
     let isAdmin = sessionStorage.getItem('isAdmin') === 'true';
 
+    // 모바일 뷰 전환 함수 (로스터 / 라인업)
+    function switchMobileView(view) {
+      const colRoster = document.getElementById('col-roster');
+      const colPreview = document.getElementById('col-preview');
+      const btnRoster = document.getElementById('m-tab-roster');
+      const btnLineup = document.getElementById('m-tab-lineup');
+
+      if (view === 'roster') {
+        colRoster.style.display = 'flex';
+        colPreview.style.display = 'none';
+        btnRoster.style.backgroundColor = 'var(--gold)';
+        btnRoster.style.color = '#000000';
+        btnRoster.className = 'flex-1 py-2.5 rounded-xl font-black text-xs shadow transition text-center';
+        btnLineup.style.backgroundColor = '';
+        btnLineup.style.color = '';
+        btnLineup.className = 'flex-1 py-2.5 rounded-xl font-bold text-xs shadow transition text-center bg-slate-800 text-slate-400';
+      } else {
+        colRoster.style.display = 'none';
+        colPreview.style.display = 'flex';
+        btnLineup.style.backgroundColor = 'var(--gold)';
+        btnLineup.style.color = '#000000';
+        btnLineup.className = 'flex-1 py-2.5 rounded-xl font-black text-xs shadow transition text-center';
+        btnRoster.style.backgroundColor = '';
+        btnRoster.style.color = '';
+        btnRoster.className = 'flex-1 py-2.5 rounded-xl font-bold text-xs shadow transition text-center bg-slate-800 text-slate-400';
+      }
+    }
+
     function checkAdminMode() {
       const btn = document.getElementById('admin-mode-btn');
-      const badge = document.getElementById('match-info-badge');
+      const colRoster = document.getElementById('col-roster');
+      const colGameOrder = document.getElementById('col-game-order');
+      const colPreview = document.getElementById('col-preview');
+      const mobileTabs = document.getElementById('mobile-mode-tabs');
       const adminOnlyEls = document.querySelectorAll('.admin-only');
-      const matchInputs = document.querySelectorAll('.match-input');
 
       if (isAdmin) {
         btn.innerText = '🔓 관리자 모드 해제';
         btn.className = 'text-[11px] font-black px-3 py-1.5 rounded-lg shadow transition';
         btn.style.backgroundColor = 'var(--gold)';
         btn.style.color = '#000000';
-        if (badge) badge.innerText = '실시간 편집 가능';
+        
+        // 관리자 모드일 때는 모바일 상단 탭 숨김 (모든 패널을 넓게 한눈에 보기 위함)
+        if (mobileTabs) mobileTabs.style.display = 'none';
+        colRoster.style.display = 'flex';
+        colRoster.className = 'w-full lg:w-[450px] panel-bg rounded-2xl p-4 flex flex-col h-[880px] shrink-0';
+        colGameOrder.classList.remove('hidden');
+        colGameOrder.style.display = 'flex';
+        colPreview.style.display = 'flex';
+        
         adminOnlyEls.forEach(el => el.classList.remove('hidden'));
-        matchInputs.forEach(inp => inp.removeAttribute('disabled'));
       } else {
         btn.innerText = '🔒 관리자 모드';
         btn.className = 'text-[11px] bg-slate-800 text-slate-300 font-bold px-3 py-1.5 rounded-lg hover:text-white transition shadow border border-slate-700';
         btn.style.backgroundColor = '';
         btn.style.color = '';
-        if (badge) badge.innerText = '공유 전용 화면';
+        
+        // 공유 모드(일반)이고 모바일 화면일 때 상단 탭 노출 및 초기 로스터 탭 선택
+        if (window.innerWidth < 1024) {
+          if (mobileTabs) mobileTabs.style.display = 'flex';
+          switchMobileView('roster');
+        } else {
+          if (mobileTabs) mobileTabs.style.display = 'none';
+          colRoster.style.display = 'flex';
+          colPreview.style.display = 'flex';
+        }
+
+        colRoster.className = 'w-full lg:w-[450px] panel-bg rounded-2xl p-4 flex flex-col h-[880px] shrink-0';
+        colGameOrder.classList.add('hidden');
+        colGameOrder.style.display = 'none';
+        
         adminOnlyEls.forEach(el => el.classList.add('hidden'));
-        matchInputs.forEach(inp => inp.setAttribute('disabled', 'true'));
       }
       renderRoster();
       renderLineup();
     }
+
+    // 화면 크기 변경 시 대응
+    window.addEventListener('resize', () => {
+      const mobileTabs = document.getElementById('mobile-mode-tabs');
+      const colRoster = document.getElementById('col-roster');
+      const colPreview = document.getElementById('col-preview');
+      if (!isAdmin) {
+        if (window.innerWidth >= 1024) {
+          if (mobileTabs) mobileTabs.style.display = 'none';
+          colRoster.style.display = 'flex';
+          colPreview.style.display = 'flex';
+        } else {
+          if (mobileTabs) mobileTabs.style.display = 'flex';
+        }
+      }
+    });
 
     function toggleAdminMode() {
       if (isAdmin) {
@@ -533,7 +593,7 @@
         if (player) {
           cell.onclick = () => showPlayerInfo(player.id);
           cell.innerHTML = `
-            <span class="jersey-num text-xl md:text-2xl font-bold tracking-tight drop-shadow-[0_1px_1px_rgba(255,255,255,0.2)]" style="color: var(--gold);">${i}</span>
+            <span class="jersey-num text-lg md:text-xl font-bold tracking-tight drop-shadow-[0_1px_1px_rgba(255,255,255,0.2)]" style="color: var(--gold);">${i}</span>
             <span class="text-[9px] font-bold text-slate-100 tracking-tighter truncate w-full px-0.5 leading-none mt-0.5">${player.name}</span>
           `;
         } else {
@@ -544,8 +604,8 @@
             cell.onclick = null;
           }
           cell.innerHTML = `
-            <span class="jersey-num text-xl md:text-2xl font-bold tracking-tight text-white">${i}</span>
-            <span class="h-2.5"></span>
+            <span class="jersey-num text-lg md:text-xl font-bold tracking-tight text-white">${i}</span>
+            <span class="h-2"></span>
           `;
         }
         grid.appendChild(cell);
@@ -663,10 +723,10 @@
         } else {
           let orderNum = 0;
           for (let i = 0; i < lineup.length; i++) {
-            if (lineup[i].orderPos !== 'SUB') orderNum++;
+            if (lineup[i].orderPos !== 'SUB' && lineup[i].orderPos !== '-') orderNum++;
             if (lineup[i].id === p.id) break;
           }
-          statusEl.innerText = `${orderNum}번 타자 (${inLineupPlayer.orderPos})`;
+          statusEl.innerText = `${orderNum > 0 ? orderNum + '번 타자' : '순번 대기'} (${inLineupPlayer.orderPos})`;
           statusEl.className = "font-bold";
           statusEl.style.color = "var(--gold)";
         }
@@ -846,7 +906,7 @@
       if (lineup.length === 0) {
         container.innerHTML = `
           <div class="h-full flex flex-col items-center justify-center text-center py-20 text-slate-500 text-xs">
-            <p class="font-bold text-slate-400 text-sm">출전 중인 선수가 없습니다</p>
+            <p class="font-bold text-slate-400 text-sm">선수를 출전 명단에 올려주세요</p>
             <p class="text-xs text-slate-600 mt-1.5">${isAdmin ? '좌측 선수명단에서 [+]를 누르면 타순에 추가됩니다.' : '관리자 모드가 활성화되면 선수를 배치할 수 있습니다.'}</p>
           </div>
         `;
@@ -858,8 +918,9 @@
 
       lineup.forEach((player, i) => {
         const isSub = player.orderPos === 'SUB';
+        const isDash = player.orderPos === '-';
         let orderDisplay = '-';
-        if (!isSub) {
+        if (!isSub && !isDash) {
           battingCount++;
           orderDisplay = battingCount;
         }
@@ -886,7 +947,7 @@
         }
 
         row.innerHTML = `
-          <span class="w-6 text-center font-black text-sm" style="color: ${isSub ? '#64748b' : 'var(--gold)'};">${orderDisplay}</span>
+          <span class="w-6 text-center font-black text-sm" style="color: ${isSub || isDash ? '#64748b' : 'var(--gold)'};">${orderDisplay}</span>
           <span class="w-9 text-center font-mono font-black text-xs text-slate-300 bg-slate-950 py-1 rounded border border-slate-800">${player.no}</span>
           <span class="flex-1 font-bold text-sm ${isSub ? 'text-slate-400' : 'text-white'} pl-1 truncate">${player.name}</span>
           ${controlsHtml}
@@ -992,8 +1053,8 @@
       const tableGrid = document.getElementById('order-table-grid');
       tableGrid.innerHTML = '';
 
-      const regularBatters = lineup.filter(p => p.orderPos !== 'SUB');
-      const subPlayers = lineup.filter(p => p.orderPos === 'SUB');
+      const regularBatters = lineup.filter(p => p.orderPos !== 'SUB' && p.orderPos !== '-');
+      const subPlayers = lineup.filter(p => p.orderPos === 'SUB' || p.orderPos === '-');
 
       const col1 = [];
       const col2 = [];
@@ -1010,7 +1071,7 @@
       for (let i = 0; i < 10; i++) {
         const p = subPlayers[i];
         if (p) {
-          col2.push({ order: '-', name: p.name, pos: 'SUB', isSub: true });
+          col2.push({ order: '-', name: p.name, pos: p.orderPos === '-' ? '-' : 'SUB', isSub: true });
         } else {
           col2.push({ order: '', name: '', pos: '', isSub: true });
         }
