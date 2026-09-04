@@ -123,8 +123,8 @@
           <span>0번 ~ 99번 배번 현황판 (10열 배치)</span>
           <span class="font-bold" style="color: var(--gold);" id="assigned-num-count">0명 배정됨</span>
         </div>
-        <div class="flex-1 overflow-y-auto bg-black border border-slate-800 rounded-xl p-2">
-          <div id="number-board-grid" class="grid grid-cols-10 gap-1 text-center select-none"></div>
+        <div class="flex-1 overflow-y-auto bg-black border border-slate-800 rounded-xl p-1.5">
+          <div id="number-board-grid" class="grid grid-cols-10 gap-0.5 text-center select-none"></div>
         </div>
       </div>
     </div>
@@ -323,29 +323,33 @@
         <div>
           <div class="flex items-center gap-2">
             <h3 id="info-name" class="text-xl font-black text-white">--</h3>
-            <span id="info-role" class="text-xs font-bold px-2 py-0.5 rounded" style="background-color: rgba(223,177,91,0.2); color: var(--gold); border: 1px solid rgba(223,177,91,0.3);"></span>
+            <span id="info-role" class="text-xs font-bold px-2 py-0.5 rounded text-white" style="background-color: rgba(223,177,91,0.2); border: 1px solid rgba(223,177,91,0.3);"></span>
           </div>
-          <p id="info-pos" class="text-xs text-slate-400 mt-0.5">--</p>
+          <p id="info-pos" class="text-xs text-white mt-0.5">--</p>
         </div>
       </div>
 
       <div class="space-y-3 text-xs">
         <div class="flex justify-between items-center bg-[#0b0d11] p-2.5 rounded-lg border border-slate-800">
           <span class="text-slate-400">생년월일</span>
-          <span id="info-birth" class="font-semibold text-slate-200">미등록</span>
+          <span id="info-birth" class="font-semibold text-white">미등록</span>
         </div>
         <div class="flex justify-between items-center bg-[#0b0d11] p-2.5 rounded-lg border border-slate-800">
           <span class="text-slate-400">연락처</span>
-          <span id="info-phone" class="font-semibold font-mono" style="color: var(--gold);">미등록</span>
+          <span id="info-phone" class="font-semibold text-white">미등록</span>
         </div>
         <div class="flex justify-between items-center bg-[#0b0d11] p-2.5 rounded-lg border border-slate-800">
-          <span class="text-slate-400">선발 출전 여부</span>
-          <span id="info-status" class="font-bold text-slate-400">대기중</span>
+          <span class="text-slate-400">직책</span>
+          <span id="info-role-text" class="font-bold text-white">일반</span>
+        </div>
+        <div class="flex justify-between items-center bg-[#0b0d11] p-2.5 rounded-lg border border-slate-800">
+          <span class="text-slate-400">주 포지션</span>
+          <span id="info-pos-text" class="font-bold text-white">-</span>
         </div>
       </div>
 
       <div class="mt-5 flex gap-2">
-        <button id="info-edit-btn" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-lg text-xs transition">정보 수정</button>
+        <button id="info-edit-btn" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg text-xs transition">정보 수정</button>
         <button onclick="closeInfoModal()" class="flex-1 py-2.5 font-black rounded-lg text-xs transition" style="background-color: var(--gold); color: #000000;">확인</button>
       </div>
     </div>
@@ -593,8 +597,8 @@
         if (player) {
           cell.onclick = () => showPlayerInfo(player.id);
           cell.innerHTML = `
-            <span class="jersey-num text-lg md:text-xl font-bold tracking-tight drop-shadow-[0_1px_1px_rgba(255,255,255,0.2)]" style="color: var(--gold);">${i}</span>
-            <span class="text-[9px] font-bold text-slate-100 tracking-tighter truncate w-full px-0.5 leading-none mt-0.5">${player.name}</span>
+            <span class="jersey-num text-base md:text-xl font-bold tracking-tight drop-shadow-[0_1px_1px_rgba(255,255,255,0.2)]" style="color: var(--gold);">${i}</span>
+            <span class="text-[8.5px] md:text-[9.5px] font-bold text-slate-100 tracking-tighter truncate w-full px-0.2 leading-none mt-0.5">${player.name}</span>
           `;
         } else {
           if (isAdmin) {
@@ -604,7 +608,7 @@
             cell.onclick = null;
           }
           cell.innerHTML = `
-            <span class="jersey-num text-lg md:text-xl font-bold tracking-tight text-white">${i}</span>
+            <span class="jersey-num text-base md:text-xl font-bold tracking-tight text-white">${i}</span>
             <span class="h-2"></span>
           `;
         }
@@ -707,33 +711,14 @@
       const p = roster.find(item => item.id === playerId);
       if (!p) return;
 
-      const inLineupPlayer = lineup.find(l => l.id === p.id);
       document.getElementById('info-badge-no').innerText = p.no;
       document.getElementById('info-name').innerText = p.name;
       document.getElementById('info-role').innerText = (p.role && p.role !== '일반') ? p.role : '선수';
-      document.getElementById('info-pos').innerText = `주 포지션: ${p.pos}`;
+      document.getElementById('info-pos').innerText = p.pos;
       document.getElementById('info-birth').innerText = p.birth || '미등록';
       document.getElementById('info-phone').innerText = p.phone || '미등록';
-      
-      const statusEl = document.getElementById('info-status');
-      if (inLineupPlayer) {
-        if (inLineupPlayer.orderPos === 'SUB') {
-          statusEl.innerText = `후보 선수 (SUB)`;
-          statusEl.className = "font-bold text-slate-300";
-        } else {
-          let orderNum = 0;
-          for (let i = 0; i < lineup.length; i++) {
-            if (lineup[i].orderPos !== 'SUB' && lineup[i].orderPos !== '-') orderNum++;
-            if (lineup[i].id === p.id) break;
-          }
-          statusEl.innerText = `${orderNum > 0 ? orderNum + '번 타자' : '순번 대기'} (${inLineupPlayer.orderPos})`;
-          statusEl.className = "font-bold";
-          statusEl.style.color = "var(--gold)";
-        }
-      } else {
-        statusEl.innerText = "대기중 (미출전)";
-        statusEl.className = "font-bold text-slate-400";
-      }
+      document.getElementById('info-role-text').innerText = (p.role && p.role !== '일반') ? p.role : '일반';
+      document.getElementById('info-pos-text').innerText = p.pos;
 
       const editBtn = document.getElementById('info-edit-btn');
       if (isAdmin) {
