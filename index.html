@@ -41,7 +41,7 @@
     }
     .jersey-num {
       font-family: 'Teko', sans-serif;
-      line-height: 0.9;
+      line-height: 1.1;
     }
     .pos-card-box {
       border: 1.2px solid var(--gold);
@@ -64,12 +64,20 @@
       z-index: 10;
       position: relative;
     }
-    /* 모바일 환경에서 배번현황판 선수 이름이 잘리지 않도록 전용 스타일 적용 */
+    /* 모바일 환경 배번현황판 글자 잘림 방지용 패딩 및 높이 조정 */
     @media (max-width: 1023px) {
+      .mobile-cell-fix {
+        padding-top: 6px !important;
+        padding-bottom: 6px !important;
+        min-height: 56px !important;
+      }
+      .mobile-num-fix {
+        font-size: 20px !important;
+        line-height: 1 !important;
+      }
       .mobile-name-fix {
-        font-size: 8px !important;
-        margin-top: 3px !important;
-        display: block !important;
+        font-size: 9px !important;
+        margin-top: 2px !important;
       }
     }
     ::-webkit-scrollbar { width: 6px; }
@@ -600,13 +608,13 @@
       for (let i = 0; i <= 99; i++) {
         const player = numMap[i];
         const cell = document.createElement('div');
-        cell.className = 'flex flex-col items-center justify-start cursor-pointer hover:bg-slate-900/90 py-1.5 px-0.5 rounded transition min-h-[52px]';
+        cell.className = 'flex flex-col items-center justify-start cursor-pointer hover:bg-slate-900/90 rounded transition mobile-cell-fix';
 
         if (player) {
           cell.onclick = () => showPlayerInfo(player.id);
           cell.innerHTML = `
-            <span class="jersey-num text-base md:text-xl font-bold tracking-tight drop-shadow-[0_1px_1px_rgba(255,255,255,0.2)]" style="color: var(--gold);">${i}</span>
-            <span class="mobile-name-fix text-[8.5px] md:text-[9.5px] font-bold text-slate-100 tracking-tighter truncate w-full px-0.2 leading-none mt-1">${player.name}</span>
+            <span class="jersey-num mobile-num-fix font-bold tracking-tight drop-shadow-[0_1px_1px_rgba(255,255,255,0.2)]" style="color: var(--gold);">${i}</span>
+            <span class="mobile-name-fix font-bold text-slate-100 tracking-tighter truncate w-full px-0.2 leading-none">${player.name}</span>
           `;
         } else {
           if (isAdmin) {
@@ -616,7 +624,7 @@
             cell.onclick = null;
           }
           cell.innerHTML = `
-            <span class="jersey-num text-base md:text-xl font-bold tracking-tight text-white">${i}</span>
+            <span class="jersey-num mobile-num-fix font-bold tracking-tight text-white">${i}</span>
             <span class="h-2"></span>
           `;
         }
