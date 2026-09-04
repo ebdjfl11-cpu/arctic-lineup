@@ -592,13 +592,14 @@
       for (let i = 0; i <= 99; i++) {
         const player = numMap[i];
         const cell = document.createElement('div');
-        cell.className = 'flex flex-col items-center justify-start cursor-pointer hover:bg-slate-900/90 p-0.5 rounded transition min-h-[46px]';
+        // 셀 상하 패딩을 살짝 주어 이름 윗부분이 잘리지 않도록 여유 확보
+        cell.className = 'flex flex-col items-center justify-start cursor-pointer hover:bg-slate-900/90 py-1 px-0.5 rounded transition min-h-[50px]';
 
         if (player) {
           cell.onclick = () => showPlayerInfo(player.id);
           cell.innerHTML = `
             <span class="jersey-num text-base md:text-xl font-bold tracking-tight drop-shadow-[0_1px_1px_rgba(255,255,255,0.2)]" style="color: var(--gold);">${i}</span>
-            <span class="text-[8.5px] md:text-[9.5px] font-bold text-slate-100 tracking-tighter truncate w-full px-0.2 leading-none mt-0.5">${player.name}</span>
+            <span class="text-[8.5px] md:text-[9.5px] font-bold text-slate-100 tracking-tighter truncate w-full px-0.2 leading-none mt-1">${player.name}</span>
           `;
         } else {
           if (isAdmin) {
@@ -609,7 +610,7 @@
           }
           cell.innerHTML = `
             <span class="jersey-num text-base md:text-xl font-bold tracking-tight text-white">${i}</span>
-            <span class="h-2"></span>
+            <span class="h-2.5"></span>
           `;
         }
         grid.appendChild(cell);
