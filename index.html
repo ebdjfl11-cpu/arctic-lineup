@@ -164,7 +164,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-2">
+        <div class="grid grid-cols-3 gap-2 mb-2">
           <div>
             <label class="text-[11px] text-slate-400 block mb-1">경기일</label>
             <input type="text" id="game-date" placeholder="2026.08.29" maxlength="10" oninput="handleDateInput(event); debounceSaveGameInfo();" class="w-full input-field px-2 py-1.5 rounded-lg text-xs text-center font-semibold match-input">
@@ -177,6 +177,12 @@
             <label class="text-[11px] text-slate-400 block mb-1">구장</label>
             <input type="text" id="game-place" placeholder="송도랜드마크야구장" oninput="debounceSaveGameInfo()" class="w-full input-field px-2.5 py-1.5 rounded-lg text-xs font-bold match-input">
           </div>
+        </div>
+
+        <!-- 라인업 미공개 설정 체크박스 -->
+        <div class="flex items-center gap-2 pt-1 border-t border-slate-800">
+          <input type="checkbox" id="game-unreleased" onchange="debounceSaveGameInfo()" class="w-4 h-4 rounded accent-amber-500 cursor-pointer">
+          <label for="game-unreleased" class="text-[11px] text-slate-300 font-semibold cursor-pointer">라인업 미공개 (일반 모드에 Coming Soon 표시)</label>
         </div>
       </div>
 
@@ -223,7 +229,7 @@
         </div>
 
         <!-- 야구장 필드 -->
-        <div class="relative w-full my-0 flex items-center justify-center overflow-hidden shrink-0" style="height: 305px;">
+        <div id="preview-field-box" class="relative w-full my-0 flex items-center justify-center overflow-hidden shrink-0" style="height: 305px;">
           <svg class="w-full h-full" viewBox="25 0 410 305" preserveAspectRatio="xMidYMid meet">
             <g transform="translate(0, -45)">
               <path d="M 50 135 A 235 235 0 0 1 410 135" stroke="var(--gold)" stroke-width="1.6" fill="none"/>
@@ -542,7 +548,7 @@
 
     let roster = [];
     let lineup = [];
-    let gameInfo = { myTeam: 'ARCTIC BASEBALL CLUB', opp: '', date: '2026.08.29', time: '07:00', place: '송도랜드마크야구장' };
+    let gameInfo = { myTeam: 'ARCTIC BASEBALL CLUB', opp: '', date: '2026.08.29', time: '07:00', place: '송도랜드마크야구장', isUnreleased: false };
     const LINEUP_POSITIONS = ['-', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'P', 'P(only)', 'SP', 'RP', 'DH', 'SUB'];
 
     TEAM_DOC_REF.onSnapshot((doc) => {
@@ -563,6 +569,7 @@
           document.getElementById('game-date').value = gameInfo.date || '';
           document.getElementById('game-time').value = gameInfo.time || '';
           document.getElementById('game-place').value = gameInfo.place || '';
+          document.getElementById('game-unreleased').checked = !!gameInfo.isUnreleased;
         }
         updateViews();
         renderGameInfoPreview();
@@ -679,7 +686,9 @@
 
       displayList.forEach(player => {
         const pKey = getPKey(player);
-        const inLineup = lineup.some(l => getPKey(l) === pKey);
+        const hideLineupStatus = !isAdmin && gameInfo.isUnreleased;
+        const inLineup = !hideLineupStatus && lineup.some(l => getPKey(l) === pKey);
+        
         const card = document.createElement('div');
         card.className = `card-item p-2.5 rounded-xl flex items-center justify-between gap-2 transition ${inLineup ? 'bg-[#1e2430]' : 'hover:border-slate-600'}`;
         if (inLineup) card.style.borderColor = 'rgba(223,177,91,0.5)';
@@ -707,9 +716,10 @@
         actionDiv.className = 'flex items-center gap-1 shrink-0';
 
         if (isAdmin) {
+          const actualInLineup = lineup.some(l => getPKey(l) === pKey);
           const toggleBtn = document.createElement('button');
-          toggleBtn.className = `w-7 h-7 rounded text-xs font-black transition flex items-center justify-center ${inLineup ? 'shadow' : 'bg-slate-800 text-white hover:bg-slate-700'}`;
-          if (inLineup) {
+          toggleBtn.className = `w-7 h-7 rounded text-xs font-black transition flex items-center justify-center ${actualInLineup ? 'shadow' : 'bg-slate-800 text-white hover:bg-slate-700'}`;
+          if (actualInLineup) {
             toggleBtn.style.backgroundColor = 'var(--gold)';
             toggleBtn.style.color = '#000000';
             toggleBtn.innerText = '✓';
@@ -745,9 +755,8 @@
           actionDiv.appendChild(delBtn);
         } else {
           const badge = document.createElement('span');
-          badge.className = `text-[10px] font-bold px-2 py-1 rounded ${inLineup ? 'text-black' : 'text-slate-400 bg-slate-800'}`;
-          if (inLineup) badge.style.backgroundColor = 'var(--gold)';
-          badge.innerText = inLineup ? '출전' : '미출전';
+          badge.className = 'text-[10px] font-bold px-2 py-1 rounded text-slate-400 bg-slate-800';
+          badge.innerText = '미출전';
           actionDiv.appendChild(badge);
         }
 
@@ -771,7 +780,9 @@
       const p = roster.find(item => getPKey(item) === String(playerKey));
       if (!p) return;
 
-      const inLineupPlayer = lineup.find(l => getPKey(l) === getPKey(p));
+      const hideLineupStatus = !isAdmin && gameInfo.isUnreleased;
+      const inLineupPlayer = !hideLineupStatus ? lineup.find(l => getPKey(l) === getPKey(p)) : null;
+
       document.getElementById('info-badge-no').innerText = p.no;
       document.getElementById('info-name').innerText = p.name;
       document.getElementById('info-role').innerText = (p.role && p.role !== '일반') ? p.role : '선수';
@@ -803,7 +814,7 @@
           statusEl.className = "font-bold text-white";
         }
       } else {
-        statusEl.innerText = "대기중 (미출전)";
+        statusEl.innerText = "미출전";
         statusEl.className = "font-bold text-slate-400";
       }
 
@@ -934,7 +945,6 @@
       syncToServer();
     }
 
-    // P(only)가 9번 타자 바로 아래(정렬상 10번째, 혹은 야수들 다음)로 오도록 정렬 순서 부여
     function sortLineupByPosition() {
       const posOrder = {
         'C': 1,
@@ -1053,6 +1063,7 @@
       gameInfo.date = document.getElementById('game-date').value;
       gameInfo.time = document.getElementById('game-time').value;
       gameInfo.place = document.getElementById('game-place').value;
+      gameInfo.isUnreleased = document.getElementById('game-unreleased').checked;
 
       renderGameInfoPreview();
       clearTimeout(saveTimeout);
@@ -1068,7 +1079,6 @@
       document.getElementById('prev-place').innerText = gameInfo.place || '구장 미정';
     }
 
-    // 왼쪽 배팅오더 설정 패널 렌더링 (P(only) 선수가 9번 밑에 타순 번호 없이 P로 오도록 정렬 반영)
     function renderLineup() {
       const container = document.getElementById('lineup-container');
       const countEl = document.getElementById('lineup-count');
@@ -1086,24 +1096,26 @@
 
       container.innerHTML = '';
       
-      // 일반 타자(1~9번)와 P(only) 선수를 분리해서 정확한 순서(1~9번 + P(only)) 생성
       const regularBatters = lineup.filter(p => p.orderPos !== 'SUB' && p.orderPos !== '-' && p.orderPos !== 'P(only)');
       const pOnlyPlayer = lineup.find(p => p.orderPos === 'P(only)');
-      const otherPlayers = lineup.filter(p => p.orderPos === 'SUB' || p.orderPos === '-');
+      const subPlayers = lineup.filter(p => p.orderPos === 'SUB' || p.orderPos === '-');
 
-      // 화면에 그려질 최종 정렬 배열 재조합 (1~9번 타자 -> P(only) -> SUB / - 순서)
       const sortedDisplayList = [];
       let bOrder = 1;
+      
       for (let i = 0; i < regularBatters.length && i < 9; i++) {
         sortedDisplayList.push({ ...regularBatters[i], displayOrder: bOrder++ });
       }
+      
       if (pOnlyPlayer) {
         sortedDisplayList.push({ ...pOnlyPlayer, displayOrder: 'P' });
       }
+      
       if (regularBatters[9]) {
         sortedDisplayList.push({ ...regularBatters[9], displayOrder: bOrder++ });
       }
-      otherPlayers.forEach(p => {
+
+      subPlayers.forEach(p => {
         sortedDisplayList.push({ ...p, displayOrder: '-' });
       });
 
@@ -1166,6 +1178,57 @@
     }
 
     function renderPreview() {
+      const fieldBox = document.getElementById('preview-field-box');
+      const tableGrid = document.getElementById('order-table-grid');
+
+      if (!isAdmin && gameInfo.isUnreleased) {
+        if (fieldBox) {
+          fieldBox.innerHTML = `
+            <div class="flex flex-col items-center justify-center w-full h-full text-center bg-black">
+              <h2 class="text-3xl font-black italic tracking-widest drop-shadow-md" style="color: var(--gold);">COMING SOON</h2>
+              <p class="text-xs text-slate-400 mt-2 tracking-wide">라인업이 아직 공개되지 않았습니다.</p>
+            </div>
+          `;
+        }
+        if (tableGrid) {
+          tableGrid.innerHTML = `
+            <div class="col-span-2 py-16 text-center font-black text-sm tracking-widest bg-black" style="color: var(--gold); border: 1px solid rgba(223,177,91,0.4);">
+              COMING SOON
+            </div>
+          `;
+        }
+        return;
+      }
+
+      if (fieldBox && !fieldBox.querySelector('svg')) {
+        fieldBox.innerHTML = `
+          <svg class="w-full h-full" viewBox="25 0 410 305" preserveAspectRatio="xMidYMid meet">
+            <g transform="translate(0, -45)">
+              <path d="M 50 135 A 235 235 0 0 1 410 135" stroke="var(--gold)" stroke-width="1.6" fill="none"/>
+              <line x1="230" y1="315" x2="50" y2="135" stroke="var(--gold)" stroke-width="1.6"/>
+              <line x1="230" y1="315" x2="410" y2="135" stroke="var(--gold)" stroke-width="1.6"/>
+              <polygon points="230,154 298,228 230,302 162,228" stroke="var(--gold)" stroke-width="1.8" fill="#000000"/>
+              <rect x="226" y="150" width="8" height="8" fill="var(--gold)" transform="rotate(45 230 154)"/>
+              <rect x="294" y="224" width="8" height="8" fill="var(--gold)" transform="rotate(45 298 228)"/>
+              <rect x="158" y="224" width="8" height="8" fill="var(--gold)" transform="rotate(45 162 228)"/>
+              <circle cx="230" cy="228" r="14" stroke="var(--gold-dark)" stroke-width="1.2" fill="#000000"/>
+              <rect x="226" y="226.5" width="8" height="3" fill="#ffffff"/>
+              <polygon points="230,297 234,302 234,307 226,307 226,302" fill="#ffffff"/>
+
+              <g id="svg-slot-CF" transform="translate(201, 48)"></g>
+              <g id="svg-slot-LF" transform="translate(80, 94)"></g>
+              <g id="svg-slot-RF" transform="translate(322, 94)"></g>
+              <g id="svg-slot-SS" transform="translate(144, 132)"></g>
+              <g id="svg-slot-2B" transform="translate(258, 132)"></g>
+              <g id="svg-slot-3B" transform="translate(96, 200)"></g>
+              <g id="svg-slot-1B" transform="translate(306, 200)"></g>
+              <g id="svg-slot-P"  transform="translate(201, 202)"></g>
+              <g id="svg-slot-C"  transform="translate(201, 284)"></g>
+            </g>
+          </svg>
+        `;
+      }
+
       const fieldSlots = [
         { id: 'svg-slot-CF', matches: ['CF'], label: 'CF' },
         { id: 'svg-slot-LF', matches: ['LF'], label: 'LF' },
@@ -1204,7 +1267,6 @@
         }
       });
 
-      const tableGrid = document.getElementById('order-table-grid');
       tableGrid.innerHTML = '';
 
       const regularBatters = lineup.filter(p => p.orderPos !== 'SUB' && p.orderPos !== '-' && p.orderPos !== 'P(only)');
