@@ -608,13 +608,14 @@
       for (let i = 0; i <= 99; i++) {
         const player = numMap[i];
         const cell = document.createElement('div');
-        cell.className = 'flex flex-col items-center justify-start cursor-pointer hover:bg-slate-900/90 rounded transition mobile-cell-fix';
+        // PC 화면에서는 높이 50px 및 기본 패딩 적용, 모바일에서는 .mobile-cell-fix에 의해 덮어씌워짐
+        cell.className = 'flex flex-col items-center justify-start cursor-pointer hover:bg-slate-900/90 py-1 px-0.5 rounded transition min-h-[50px] mobile-cell-fix';
 
         if (player) {
           cell.onclick = () => showPlayerInfo(player.id);
           cell.innerHTML = `
-            <span class="jersey-num mobile-num-fix font-bold tracking-tight drop-shadow-[0_1px_1px_rgba(255,255,255,0.2)]" style="color: var(--gold);">${i}</span>
-            <span class="mobile-name-fix font-bold text-slate-100 tracking-tighter truncate w-full px-0.2 leading-none">${player.name}</span>
+            <span class="jersey-num text-xl mobile-num-fix font-bold tracking-tight drop-shadow-[0_1px_1px_rgba(255,255,255,0.2)]" style="color: var(--gold);">${i}</span>
+            <span class="text-[10.5px] mobile-name-fix font-bold text-slate-100 tracking-tighter truncate w-full px-0 leading-none mt-1">${player.name}</span>
           `;
         } else {
           if (isAdmin) {
@@ -624,7 +625,7 @@
             cell.onclick = null;
           }
           cell.innerHTML = `
-            <span class="jersey-num mobile-num-fix font-bold tracking-tight text-white">${i}</span>
+            <span class="jersey-num text-xl mobile-num-fix font-bold tracking-tight text-white">${i}</span>
             <span class="h-2"></span>
           `;
         }
@@ -727,6 +728,7 @@
       const p = roster.find(item => item.id === playerId);
       if (!p) return;
 
+      const inLineupPlayer = lineup.find(l => l.id === p.id);
       document.getElementById('info-badge-no').innerText = p.no;
       document.getElementById('info-name').innerText = p.name;
       document.getElementById('info-role').innerText = (p.role && p.role !== '일반') ? p.role : '선수';
@@ -735,6 +737,26 @@
       document.getElementById('info-phone').innerText = p.phone || '미등록';
       document.getElementById('info-role-text').innerText = (p.role && p.role !== '일반') ? p.role : '일반';
       document.getElementById('info-pos-text').innerText = p.pos;
+
+      const statusEl = document.getElementById('info-status');
+      if (inLineupPlayer) {
+        if (inLineupPlayer.orderPos === 'SUB') {
+          statusEl.innerText = `후보 선수 (SUB)`;
+          statusEl.className = "font-bold text-slate-300";
+        } else {
+          let orderNum = 0;
+          for (let i = 0; i < lineup.length; i++) {
+            if (lineup[i].orderPos !== 'SUB' && lineup[i].orderPos !== '-') orderNum++;
+            if (lineup[i].id === p.id) break;
+          }
+          statusEl.innerText = `${orderNum > 0 ? orderNum + '번 타자' : '순번 대기'} (${inLineupPlayer.orderPos})`;
+          statusEl.className = "font-bold";
+          statusEl.style.color = "var(--gold)";
+        }
+      } else {
+        statusEl.innerText = "대기중 (미출전)";
+        statusEl.className = "font-bold text-slate-400";
+      }
 
       const editBtn = document.getElementById('info-edit-btn');
       if (isAdmin) {
