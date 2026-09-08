@@ -559,6 +559,7 @@
     let isAdmin = sessionStorage.getItem('isAdmin') === 'true';
     let currentRosterTab = 'roster';
     let openedNoticeId = null;
+    let editingCommentData = null; // { parentId, commentId, type: 'poll'|'notice' }
 
     function getPKey(p) {
       if (!p) return '';
@@ -1573,10 +1574,12 @@
       const nameInp = document.getElementById(`comment-name-${pollId}`);
       const pwInp = document.getElementById(`comment-pw-${pollId}`);
       const textInp = document.getElementById(`comment-text-${pollId}`);
+      const editIdInp = document.getElementById(`comment-edit-id-${pollId}`);
 
       const name = nameInp ? nameInp.value.trim() : '';
       const pw = pwInp ? pwInp.value.trim() : '';
       const text = textInp ? textInp.value.trim() : '';
+      const editId = editIdInp ? editIdInp.value : '';
 
       if (!name) {
         alert("작성자 이름을 입력해주세요.");
@@ -1603,17 +1606,32 @@
         return;
       }
 
-      const now = new Date();
-      const timeStr = `${now.getMonth() + 1}.${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      if (editId) {
+        const cmt = (poll.comments || []).find(c => String(c.id) === String(editId));
+        if (cmt) {
+          if (!isAdmin && cmt.pw !== pw) {
+            alert("비밀번호가 일치하지 않습니다.");
+            return;
+          }
+          cmt.text = text;
+          cmt.name = name;
+        }
+        editIdInp.value = '';
+        const submitBtn = document.getElementById(`comment-submit-btn-${pollId}`);
+        if (submitBtn) submitBtn.innerText = '등록';
+      } else {
+        const now = new Date();
+        const timeStr = `${now.getMonth() + 1}.${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-      if (!poll.comments) poll.comments = [];
-      poll.comments.push({
-        id: 'cmt_' + Date.now(),
-        name: name,
-        pw: pw,
-        text: text,
-        time: timeStr
-      });
+        if (!poll.comments) poll.comments = [];
+        poll.comments.push({
+          id: 'cmt_' + Date.now(),
+          name: name,
+          pw: pw,
+          text: text,
+          time: timeStr
+        });
+      }
 
       if (textInp) textInp.value = '';
       if (pwInp) pwInp.value = '';
@@ -1629,24 +1647,28 @@
       if (!cmt) return;
 
       if (!isAdmin) {
-        const pw = prompt("댓글 작성 시 설정한 비밀번호를 입력하세요:");
-        if (pw === null) return;
-        if (pw !== cmt.pw) {
+        const inputPw = prompt("댓글 작성 시 설정한 비밀번호를 입력하세요:");
+        if (inputPw === null) return;
+        if (inputPw !== cmt.pw) {
           alert("비밀번호가 일치하지 않습니다.");
           return;
         }
       }
 
-      const newText = prompt("수정할 댓글 내용을 입력하세요:", cmt.text);
-      if (newText === null) return;
-      if (!newText.trim()) {
-        alert("댓글 내용을 입력해주세요.");
-        return;
-      }
+      const nameInp = document.getElementById(`comment-name-${pollId}`);
+      const pwInp = document.getElementById(`comment-pw-${pollId}`);
+      const textInp = document.getElementById(`comment-text-${pollId}`);
+      const editIdInp = document.getElementById(`comment-edit-id-${pollId}`);
+      const submitBtn = document.getElementById(`comment-submit-btn-${pollId}`);
 
-      cmt.text = newText.trim();
-      renderPolls();
-      syncToServer();
+      if (nameInp) nameInp.value = cmt.name;
+      if (pwInp) pwInp.value = cmt.pw;
+      if (textInp) {
+        textInp.value = cmt.text;
+        textInp.focus();
+      }
+      if (editIdInp) editIdInp.value = cmt.id;
+      if (submitBtn) submitBtn.innerText = '수정 완료';
     }
 
     function deletePollComment(pollId, commentId) {
@@ -1807,13 +1829,14 @@
             <div class="text-[11px] font-bold text-slate-400 mb-1.5">💬 댓글 (${poll.comments ? poll.comments.length : 0}개)</div>
             ${commentsListHtml}
             <form onsubmit="event.preventDefault(); submitComment('${poll.id}');" class="flex flex-col gap-1.5 mt-2 bg-[#08090c] p-2 rounded-lg border border-slate-800/80">
+              <input type="hidden" id="comment-edit-id-${poll.id}">
               <div class="flex items-center gap-1.5">
                 <input type="text" id="comment-name-${poll.id}" required placeholder="이름" class="w-20 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
                 <input type="password" id="comment-pw-${poll.id}" required placeholder="비밀번호" class="w-24 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
               </div>
               <div class="flex gap-1.5">
                 <input type="text" id="comment-text-${poll.id}" required placeholder="댓글을 입력하세요" class="flex-1 input-field px-2 py-1 rounded text-[11px]">
-                <button type="submit" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded text-[11px] transition shrink-0">등록</button>
+                <button type="submit" id="comment-submit-btn-${poll.id}" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded text-[11px] transition shrink-0">등록</button>
               </div>
             </form>
           </div>
@@ -1931,11 +1954,15 @@
 
       const nameInp = document.getElementById(`notice-comment-name-${noticeId}`);
       const pwInp = document.getElementById(`notice-comment-pw-${noticeId}`);
+      const secretInp = document.getElementById(`notice-comment-secret-${noticeId}`);
       const textInp = document.getElementById(`notice-comment-text-${noticeId}`);
+      const editIdInp = document.getElementById(`notice-comment-edit-id-${noticeId}`);
 
       const name = nameInp ? nameInp.value.trim() : '';
       const pw = pwInp ? pwInp.value.trim() : '';
+      const isSecret = secretInp ? secretInp.checked : false;
       const text = textInp ? textInp.value.trim() : '';
+      const editId = editIdInp ? editIdInp.value : '';
 
       if (!name) {
         alert("작성자 이름을 입력해주세요.");
@@ -1962,20 +1989,38 @@
         return;
       }
 
-      const now = new Date();
-      const timeStr = `${now.getMonth() + 1}.${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      if (editId) {
+        const cmt = (notice.comments || []).find(c => String(c.id) === String(editId));
+        if (cmt) {
+          if (!isAdmin && cmt.pw !== pw) {
+            alert("비밀번호가 일치하지 않습니다.");
+            return;
+          }
+          cmt.text = text;
+          cmt.name = name;
+          cmt.isSecret = isSecret;
+        }
+        editIdInp.value = '';
+        const submitBtn = document.getElementById(`notice-comment-submit-btn-${noticeId}`);
+        if (submitBtn) submitBtn.innerText = '등록';
+      } else {
+        const now = new Date();
+        const timeStr = `${now.getMonth() + 1}.${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-      if (!notice.comments) notice.comments = [];
-      notice.comments.push({
-        id: 'n_cmt_' + Date.now(),
-        name: name,
-        pw: pw,
-        text: text,
-        time: timeStr
-      });
+        if (!notice.comments) notice.comments = [];
+        notice.comments.push({
+          id: 'n_cmt_' + Date.now(),
+          name: name,
+          pw: pw,
+          isSecret: isSecret,
+          text: text,
+          time: timeStr
+        });
+      }
 
       if (textInp) textInp.value = '';
       if (pwInp) pwInp.value = '';
+      if (secretInp) secretInp.checked = false;
 
       openedNoticeId = String(noticeId);
       renderNotices();
@@ -1989,25 +2034,32 @@
       if (!cmt) return;
 
       if (!isAdmin) {
-        const pw = prompt("댓글 작성 시 설정한 비밀번호를 입력하세요:");
-        if (pw === null) return;
-        if (pw !== cmt.pw) {
+        const inputPw = prompt("댓글 작성 시 설정한 비밀번호를 입력하세요:");
+        if (inputPw === null) return;
+        if (inputPw !== cmt.pw) {
           alert("비밀번호가 일치하지 않습니다.");
           return;
         }
       }
 
-      const newText = prompt("수정할 댓글 내용을 입력하세요:", cmt.text);
-      if (newText === null) return;
-      if (!newText.trim()) {
-        alert("댓글 내용을 입력해주세요.");
-        return;
-      }
+      const nameInp = document.getElementById(`notice-comment-name-${noticeId}`);
+      const pwInp = document.getElementById(`notice-comment-pw-${noticeId}`);
+      const secretInp = document.getElementById(`notice-comment-secret-${noticeId}`);
+      const textInp = document.getElementById(`notice-comment-text-${noticeId}`);
+      const editIdInp = document.getElementById(`notice-comment-edit-id-${noticeId}`);
+      const submitBtn = document.getElementById(`notice-comment-submit-btn-${noticeId}`);
 
-      cmt.text = newText.trim();
+      if (nameInp) nameInp.value = cmt.name;
+      if (pwInp) pwInp.value = cmt.pw;
+      if (secretInp) secretInp.checked = !!cmt.isSecret;
+      if (textInp) {
+        textInp.value = cmt.text;
+        textInp.focus();
+      }
+      if (editIdInp) editIdInp.value = cmt.id;
+      if (submitBtn) submitBtn.innerText = '수정 완료';
+
       openedNoticeId = String(noticeId);
-      renderNotices();
-      syncToServer();
     }
 
     function deleteNoticeComment(noticeId, commentId) {
@@ -2032,6 +2084,26 @@
       openedNoticeId = String(noticeId);
       renderNotices();
       syncToServer();
+    }
+
+    function revealNoticeSecretComment(noticeId, commentId) {
+      const notice = notices.find(n => String(n.id) === String(noticeId));
+      if (!notice || !notice.comments) return;
+      const cmt = notice.comments.find(c => String(c.id) === String(commentId));
+      if (!cmt) return;
+
+      const inputPw = prompt("비밀댓글 작성 시 입력한 비밀번호를 입력하세요:");
+      if (inputPw === null) return;
+      if (inputPw === cmt.pw) {
+        const el = document.getElementById(`secret-text-${cmt.id}`);
+        if (el) {
+          el.className = "text-amber-300/90 whitespace-pre-wrap leading-relaxed";
+          el.innerHTML = `<span class="text-[10px] text-amber-500 font-bold">[🔒 비밀댓글]</span> ${cmt.text}`;
+          el.onclick = null;
+        }
+      } else {
+        alert("비밀번호가 일치하지 않습니다.");
+      }
     }
 
     function renderNotices() {
@@ -2093,6 +2165,21 @@
         if (notice.comments && notice.comments.length > 0) {
           commentsListHtml = `<div class="space-y-1.5 pt-1">`;
           notice.comments.forEach(cmt => {
+            let commentBodyHtml = '';
+            if (cmt.isSecret) {
+              if (isAdmin) {
+                commentBodyHtml = `<p class="text-amber-300/90 whitespace-pre-wrap leading-relaxed"><span class="text-[10px] text-amber-500 font-bold">[🔒 비밀댓글]</span> ${cmt.text}</p>`;
+              } else {
+                commentBodyHtml = `
+                  <p id="secret-text-${cmt.id}" class="text-slate-500 italic flex items-center gap-1 cursor-pointer hover:text-slate-400 transition select-none" onclick="revealNoticeSecretComment('${notice.id}', '${cmt.id}')">
+                    <span>🔒 비밀댓글입니다. (클릭하여 확인)</span>
+                  </p>
+                `;
+              }
+            } else {
+              commentBodyHtml = `<p class="text-slate-300 whitespace-pre-wrap">${cmt.text}</p>`;
+            }
+
             commentsListHtml += `
               <div class="bg-black/50 p-2 rounded-lg border border-slate-800/80 text-[11px] leading-snug">
                 <div class="flex justify-between items-center mb-0.5">
@@ -2103,7 +2190,7 @@
                     <button onclick="deleteNoticeComment('${notice.id}', '${cmt.id}')" class="text-slate-400 hover:text-rose-400 font-bold">삭제</button>
                   </div>
                 </div>
-                <p class="text-slate-300 whitespace-pre-wrap">${cmt.text}</p>
+                ${commentBodyHtml}
               </div>
             `;
           });
@@ -2115,13 +2202,18 @@
             <div class="text-[11px] font-bold text-slate-400 mb-1.5">💬 댓글 (${commentCount}개)</div>
             ${commentsListHtml}
             <form onsubmit="event.preventDefault(); submitNoticeComment('${notice.id}');" class="flex flex-col gap-1.5 mt-2 bg-[#08090c] p-2 rounded-lg border border-slate-800/80">
-              <div class="flex items-center gap-1.5">
+              <input type="hidden" id="notice-comment-edit-id-${notice.id}">
+              <div class="flex items-center gap-2 flex-wrap">
                 <input type="text" id="notice-comment-name-${notice.id}" required placeholder="이름" class="w-20 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
                 <input type="password" id="notice-comment-pw-${notice.id}" required placeholder="비밀번호" class="w-24 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
+                <label class="flex items-center gap-1 text-[11px] text-slate-300 font-semibold cursor-pointer select-none shrink-0">
+                  <input type="checkbox" id="notice-comment-secret-${notice.id}" class="w-3.5 h-3.5 rounded accent-amber-500 cursor-pointer">
+                  <span>비밀댓글</span>
+                </label>
               </div>
               <div class="flex gap-1.5">
                 <input type="text" id="notice-comment-text-${notice.id}" required placeholder="댓글을 입력하세요" class="flex-1 input-field px-2 py-1 rounded text-[11px]">
-                <button type="submit" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded text-[11px] transition shrink-0">등록</button>
+                <button type="submit" id="notice-comment-submit-btn-${notice.id}" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded text-[11px] transition shrink-0">등록</button>
               </div>
             </form>
           </div>
