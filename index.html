@@ -558,7 +558,7 @@
   <script>
     let isAdmin = sessionStorage.getItem('isAdmin') === 'true';
     let currentRosterTab = 'roster';
-    let openedNoticeId = null; // 한번에 1개만 펼쳐지도록 단일 ID 관리
+    let openedNoticeId = null;
 
     function getPKey(p) {
       if (!p) return '';
@@ -1592,7 +1592,7 @@
       }
 
       if (!pw) {
-        alert("비밀번호(비밀댓글시에만 입력)를 입력해주세요.");
+        alert("비밀번호를 입력해주세요.");
         if (pwInp) pwInp.focus();
         return;
       }
@@ -1809,7 +1809,7 @@
             <form onsubmit="event.preventDefault(); submitComment('${poll.id}');" class="flex flex-col gap-1.5 mt-2 bg-[#08090c] p-2 rounded-lg border border-slate-800/80">
               <div class="flex items-center gap-1.5">
                 <input type="text" id="comment-name-${poll.id}" required placeholder="이름" class="w-20 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
-                <input type="password" id="comment-pw-${poll.id}" required placeholder="비밀번호(비밀댓글시에만 입력)" class="flex-1 input-field px-2 py-1 rounded text-[11px] font-bold">
+                <input type="password" id="comment-pw-${poll.id}" required placeholder="비밀번호" class="w-24 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
               </div>
               <div class="flex gap-1.5">
                 <input type="text" id="comment-text-${poll.id}" required placeholder="댓글을 입력하세요" class="flex-1 input-field px-2 py-1 rounded text-[11px]">
@@ -1880,7 +1880,7 @@
           date: dateStr,
           comments: []
         });
-        openedNoticeId = newId; // 새로 작성한 공지는 자동 펼침
+        openedNoticeId = newId;
       }
 
       closeNoticeModal();
@@ -1915,13 +1915,12 @@
       syncToServer();
     }
 
-    // 1개만 펼쳐지도록 토글 (누르면 열리고, 다른 거 누르면 기존 건 접힘)
     function toggleNotice(noticeId) {
       const idStr = String(noticeId);
       if (openedNoticeId === idStr) {
-        openedNoticeId = null; // 이미 열려있던 걸 누르면 접기
+        openedNoticeId = null;
       } else {
-        openedNoticeId = idStr; // 다른 걸 누르면 그것만 열기
+        openedNoticeId = idStr;
       }
       renderNotices();
     }
@@ -1932,12 +1931,10 @@
 
       const nameInp = document.getElementById(`notice-comment-name-${noticeId}`);
       const pwInp = document.getElementById(`notice-comment-pw-${noticeId}`);
-      const secretInp = document.getElementById(`notice-comment-secret-${noticeId}`);
       const textInp = document.getElementById(`notice-comment-text-${noticeId}`);
 
       const name = nameInp ? nameInp.value.trim() : '';
       const pw = pwInp ? pwInp.value.trim() : '';
-      const isSecret = secretInp ? secretInp.checked : false;
       const text = textInp ? textInp.value.trim() : '';
 
       if (!name) {
@@ -1954,7 +1951,7 @@
       }
 
       if (!pw) {
-        alert("비밀번호(비밀댓글시에만 입력)를 입력해주세요.");
+        alert("비밀번호를 입력해주세요.");
         if (pwInp) pwInp.focus();
         return;
       }
@@ -1973,14 +1970,12 @@
         id: 'n_cmt_' + Date.now(),
         name: name,
         pw: pw,
-        isSecret: isSecret,
         text: text,
         time: timeStr
       });
 
       if (textInp) textInp.value = '';
       if (pwInp) pwInp.value = '';
-      if (secretInp) secretInp.checked = false;
 
       openedNoticeId = String(noticeId);
       renderNotices();
@@ -2037,26 +2032,6 @@
       openedNoticeId = String(noticeId);
       renderNotices();
       syncToServer();
-    }
-
-    function revealNoticeSecretComment(noticeId, commentId) {
-      const notice = notices.find(n => String(n.id) === String(noticeId));
-      if (!notice || !notice.comments) return;
-      const cmt = notice.comments.find(c => String(c.id) === String(commentId));
-      if (!cmt) return;
-
-      const inputPw = prompt("비밀댓글 작성 시 입력한 비밀번호를 입력하세요:");
-      if (inputPw === null) return;
-      if (inputPw === cmt.pw) {
-        const el = document.getElementById(`secret-text-${cmt.id}`);
-        if (el) {
-          el.className = "text-amber-300/90 whitespace-pre-wrap leading-relaxed";
-          el.innerHTML = `<span class="text-[10px] text-amber-500 font-bold">[🔒 비밀댓글]</span> ${cmt.text}`;
-          el.onclick = null;
-        }
-      } else {
-        alert("비밀번호가 일치하지 않습니다.");
-      }
     }
 
     function renderNotices() {
@@ -2118,21 +2093,6 @@
         if (notice.comments && notice.comments.length > 0) {
           commentsListHtml = `<div class="space-y-1.5 pt-1">`;
           notice.comments.forEach(cmt => {
-            let commentBodyHtml = '';
-            if (cmt.isSecret) {
-              if (isAdmin) {
-                commentBodyHtml = `<p class="text-amber-300/90 whitespace-pre-wrap leading-relaxed"><span class="text-[10px] text-amber-500 font-bold">[🔒 비밀댓글]</span> ${cmt.text}</p>`;
-              } else {
-                commentBodyHtml = `
-                  <p id="secret-text-${cmt.id}" class="text-slate-500 italic flex items-center gap-1 cursor-pointer hover:text-slate-400 transition select-none" onclick="revealNoticeSecretComment('${notice.id}', '${cmt.id}')">
-                    <span>🔒 비밀댓글입니다. (클릭하여 확인)</span>
-                  </p>
-                `;
-              }
-            } else {
-              commentBodyHtml = `<p class="text-slate-300 whitespace-pre-wrap">${cmt.text}</p>`;
-            }
-
             commentsListHtml += `
               <div class="bg-black/50 p-2 rounded-lg border border-slate-800/80 text-[11px] leading-snug">
                 <div class="flex justify-between items-center mb-0.5">
@@ -2143,7 +2103,7 @@
                     <button onclick="deleteNoticeComment('${notice.id}', '${cmt.id}')" class="text-slate-400 hover:text-rose-400 font-bold">삭제</button>
                   </div>
                 </div>
-                ${commentBodyHtml}
+                <p class="text-slate-300 whitespace-pre-wrap">${cmt.text}</p>
               </div>
             `;
           });
@@ -2155,13 +2115,9 @@
             <div class="text-[11px] font-bold text-slate-400 mb-1.5">💬 댓글 (${commentCount}개)</div>
             ${commentsListHtml}
             <form onsubmit="event.preventDefault(); submitNoticeComment('${notice.id}');" class="flex flex-col gap-1.5 mt-2 bg-[#08090c] p-2 rounded-lg border border-slate-800/80">
-              <div class="flex items-center gap-2 flex-wrap">
+              <div class="flex items-center gap-1.5">
                 <input type="text" id="notice-comment-name-${notice.id}" required placeholder="이름" class="w-20 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
-                <input type="password" id="notice-comment-pw-${notice.id}" required placeholder="비밀번호(비밀댓글시에만 입력)" class="w-48 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
-                <label class="flex items-center gap-1 text-[11px] text-slate-300 font-semibold cursor-pointer select-none shrink-0">
-                  <input type="checkbox" id="notice-comment-secret-${notice.id}" class="w-3.5 h-3.5 rounded accent-amber-500 cursor-pointer">
-                  <span>비밀댓글</span>
-                </label>
+                <input type="password" id="notice-comment-pw-${notice.id}" required placeholder="비밀번호" class="w-24 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
               </div>
               <div class="flex gap-1.5">
                 <input type="text" id="notice-comment-text-${notice.id}" required placeholder="댓글을 입력하세요" class="flex-1 input-field px-2 py-1 rounded text-[11px]">
