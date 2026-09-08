@@ -100,7 +100,7 @@
 
   <div id="main-container" class="max-w-[1550px] mx-auto flex flex-wrap justify-center items-start gap-3">
 
-    <!-- [COLUMN 1] ROSTER / 선수 명단 & 배번 현황 & 팀 일정 & 참여 투표 -->
+    <!-- [COLUMN 1] ROSTER / 선수 명단 & 배번 현황 & 팀 일정 & 참여 투표 & 공지사항 -->
     <div id="col-roster" class="w-full lg:w-[450px] panel-bg rounded-2xl p-4 flex flex-col h-[880px] shrink-0">
       <div class="flex justify-between items-center mb-3">
         <div>
@@ -113,6 +113,7 @@
             <button id="tab-btn-numbers" onclick="switchRosterTab('numbers')" class="px-2 py-1 bg-slate-800 text-slate-400 font-bold text-[11px] rounded-md hover:text-slate-200 transition">배번현황</button>
             <button id="tab-btn-schedule" onclick="switchRosterTab('schedule')" class="px-2 py-1 bg-slate-800 text-slate-400 font-bold text-[11px] rounded-md hover:text-slate-200 transition">팀일정</button>
             <button id="tab-btn-poll" onclick="switchRosterTab('poll')" class="px-2 py-1 bg-slate-800 text-slate-400 font-bold text-[11px] rounded-md hover:text-slate-200 transition">참여투표</button>
+            <button id="tab-btn-notice" onclick="switchRosterTab('notice')" class="px-2 py-1 bg-slate-800 text-slate-400 font-bold text-[11px] rounded-md hover:text-slate-200 transition">공지사항</button>
           </div>
         </div>
         <div>
@@ -124,6 +125,9 @@
           </button>
           <button id="btn-open-poll" onclick="openPollModal()" class="font-black px-3 py-2 rounded-lg text-xs flex items-center gap-1 shadow transition admin-only hidden" style="background-color: var(--gold); color: #000000;">
             <span>+</span> 투표 생성
+          </button>
+          <button id="btn-open-notice" onclick="openNoticeModal()" class="font-black px-3 py-2 rounded-lg text-xs flex items-center gap-1 shadow transition admin-only hidden" style="background-color: var(--gold); color: #000000;">
+            <span>+</span> 공지 작성
           </button>
         </div>
       </div>
@@ -171,6 +175,15 @@
           <span class="font-bold" style="color: var(--gold);" id="assigned-poll-count">0건 진행중</span>
         </div>
         <div id="poll-list" class="flex-1 overflow-y-auto space-y-3 pr-1"></div>
+      </div>
+
+      <!-- 공지사항 뷰 -->
+      <div id="notice-tab-view" class="flex flex-col flex-1 min-h-0 hidden">
+        <div class="flex justify-between items-center mb-2 px-1 text-[11px] text-slate-400">
+          <span>팀 공지사항 (1개씩 펼쳐보기)</span>
+          <span class="font-bold" style="color: var(--gold);" id="assigned-notice-count">0건 등록됨</span>
+        </div>
+        <div id="notice-list" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
       </div>
     </div>
 
@@ -463,6 +476,39 @@
     </div>
   </div>
 
+  <!-- 공지사항 작성 / 수정 모달 (관리자 전용) -->
+  <div id="notice-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="panel-bg w-full max-w-md rounded-2xl p-6 shadow-2xl relative" style="border: 1px solid rgba(223,177,91,0.4);">
+      <div class="flex justify-between items-center mb-5 pb-3 border-b border-slate-800">
+        <div>
+          <span id="notice-modal-sub-title" class="text-[10px] font-black tracking-wider" style="color: var(--gold);">TEAM NOTICE</span>
+          <h3 id="notice-modal-main-title" class="text-lg font-bold text-white">공지사항 작성</h3>
+        </div>
+        <button onclick="closeNoticeModal()" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
+      </div>
+
+      <form id="notice-form" onsubmit="handleSaveNotice(event)" class="space-y-4 text-xs">
+        <input type="hidden" id="edit-notice-id">
+
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">공지 제목 <span class="text-rose-400">*</span></label>
+          <input type="text" id="inp-notice-title" required placeholder="공지 제목을 입력하세요" class="w-full input-field px-3 py-2 rounded-lg text-xs font-bold">
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">공지 내용 <span class="text-rose-400">*</span></label>
+          <textarea id="inp-notice-content" required rows="6" placeholder="팀원들에게 전달할 공지 내용을 자세히 작성하세요." class="w-full input-field px-3 py-2 rounded-lg text-xs font-semibold resize-none"></textarea>
+        </div>
+
+        <div class="flex gap-2 pt-4 border-t border-slate-800">
+          <button type="button" id="btn-delete-notice" onclick="handleDeleteNotice()" class="hidden px-4 py-2.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 font-bold rounded-lg text-xs transition">삭제</button>
+          <button type="button" onclick="closeNoticeModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg text-xs transition">취소</button>
+          <button type="submit" id="btn-notice-save-submit" class="flex-1 py-2.5 font-black rounded-lg text-xs shadow-lg transition" style="background-color: var(--gold); color: #000000;">작성 완료</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- 선수 상세 정보창 모달 -->
   <div id="info-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="panel-bg w-full max-w-sm rounded-2xl p-6 shadow-2xl relative" style="border: 1px solid rgba(223,177,91,0.5);">
@@ -512,6 +558,7 @@
   <script>
     let isAdmin = sessionStorage.getItem('isAdmin') === 'true';
     let currentRosterTab = 'roster';
+    let openedNoticeId = null; // 한번에 1개만 펼쳐지도록 단일 ID 관리
 
     function getPKey(p) {
       if (!p) return '';
@@ -599,6 +646,7 @@
       renderLineup();
       renderSchedules();
       renderPolls();
+      renderNotices();
     }
 
     window.addEventListener('resize', () => {
@@ -691,6 +739,7 @@
     let lineup = [];
     let schedules = [];
     let polls = [];
+    let notices = [];
     let gameInfo = { myTeam: 'ARCTIC BASEBALL CLUB', opp: '', date: '2026.08.29', time: '07:00', place: '송도랜드마크야구장', isUnreleased: false };
     const LINEUP_POSITIONS = ['-', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'P', 'P(only)', 'SP', 'RP', 'DH', 'SUB'];
 
@@ -725,6 +774,17 @@
           polls = [];
         }
 
+        if (data.notices) {
+          const rawNotices = Array.isArray(data.notices) ? data.notices : Object.values(data.notices);
+          notices = rawNotices.map((n, idx) => ({
+            ...n,
+            id: n.id || ('notice_' + idx + '_' + Date.now()),
+            comments: Array.isArray(n.comments) ? n.comments : (n.comments ? Object.values(n.comments) : [])
+          }));
+        } else {
+          notices = [];
+        }
+
         if (data.gameInfo) {
           gameInfo = data.gameInfo;
           gameInfo.isUnreleased = Boolean(gameInfo.isUnreleased && gameInfo.isUnreleased !== 'false' && gameInfo.isUnreleased !== '0');
@@ -755,6 +815,7 @@
         gameInfo: cleanData(gameInfo),
         schedules: cleanData(schedules),
         polls: cleanData(polls),
+        notices: cleanData(notices),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true }).catch(err => console.error("동기화 실패:", err));
     }
@@ -765,28 +826,33 @@
       const btnNumbers = document.getElementById('tab-btn-numbers');
       const btnSchedule = document.getElementById('tab-btn-schedule');
       const btnPoll = document.getElementById('tab-btn-poll');
+      const btnNotice = document.getElementById('tab-btn-notice');
+
       const viewRoster = document.getElementById('roster-tab-view');
       const viewNumbers = document.getElementById('numbers-tab-view');
       const viewSchedule = document.getElementById('schedule-tab-view');
       const viewPoll = document.getElementById('poll-tab-view');
+      const viewNotice = document.getElementById('notice-tab-view');
 
       const btnOpenRegister = document.getElementById('btn-open-register');
       const btnOpenSchedule = document.getElementById('btn-open-schedule');
       const btnOpenPoll = document.getElementById('btn-open-poll');
+      const btnOpenNotice = document.getElementById('btn-open-notice');
 
-      [btnRoster, btnNumbers, btnSchedule, btnPoll].forEach(b => {
+      [btnRoster, btnNumbers, btnSchedule, btnPoll, btnNotice].forEach(b => {
         if (!b) return;
         b.style.backgroundColor = '';
         b.style.color = '';
         b.className = 'px-2 py-1 bg-slate-800 text-slate-400 font-bold text-[11px] rounded-md hover:text-slate-200 transition';
       });
-      [viewRoster, viewNumbers, viewSchedule, viewPoll].forEach(v => {
+      [viewRoster, viewNumbers, viewSchedule, viewPoll, viewNotice].forEach(v => {
         if (v) v.classList.add('hidden');
       });
 
       if (btnOpenRegister) btnOpenRegister.classList.add('hidden');
       if (btnOpenSchedule) btnOpenSchedule.classList.add('hidden');
       if (btnOpenPoll) btnOpenPoll.classList.add('hidden');
+      if (btnOpenNotice) btnOpenNotice.classList.add('hidden');
 
       if (tab === 'roster') {
         btnRoster.style.backgroundColor = 'var(--gold)';
@@ -814,6 +880,13 @@
         viewPoll.classList.remove('hidden');
         if (isAdmin && btnOpenPoll) btnOpenPoll.classList.remove('hidden');
         renderPolls();
+      } else if (tab === 'notice') {
+        btnNotice.style.backgroundColor = 'var(--gold)';
+        btnNotice.style.color = '#000000';
+        btnNotice.className = 'px-2 py-1 font-black text-[11px] rounded-md shadow transition';
+        viewNotice.classList.remove('hidden');
+        if (isAdmin && btnOpenNotice) btnOpenNotice.classList.remove('hidden');
+        renderNotices();
       }
     }
 
@@ -1443,6 +1516,14 @@
         if (nameInp) nameInp.focus();
         return;
       }
+
+      const isRegistered = roster.some(p => p.name && p.name.trim() === voterName);
+      if (!isRegistered) {
+        alert("선수명을 정확히 작성해주세요.");
+        if (nameInp) nameInp.focus();
+        return;
+      }
+
       if (!voterPw) {
         alert("비밀번호를 입력해주세요.\n(최초 설정한 비밀번호는 향후 투표 수정 시 본인 확인용으로 사용됩니다)");
         if (pwInp) pwInp.focus();
@@ -1490,9 +1571,11 @@
       if (!poll) return;
 
       const nameInp = document.getElementById(`comment-name-${pollId}`);
+      const pwInp = document.getElementById(`comment-pw-${pollId}`);
       const textInp = document.getElementById(`comment-text-${pollId}`);
 
       const name = nameInp ? nameInp.value.trim() : '';
+      const pw = pwInp ? pwInp.value.trim() : '';
       const text = textInp ? textInp.value.trim() : '';
 
       if (!name) {
@@ -1500,6 +1583,20 @@
         if (nameInp) nameInp.focus();
         return;
       }
+
+      const isRegistered = roster.some(p => p.name && p.name.trim() === name);
+      if (!isRegistered) {
+        alert("선수명을 정확히 작성해주세요.");
+        if (nameInp) nameInp.focus();
+        return;
+      }
+
+      if (!pw) {
+        alert("비밀번호(비밀댓글시에만 입력)를 입력해주세요.");
+        if (pwInp) pwInp.focus();
+        return;
+      }
+
       if (!text) {
         alert("댓글 내용을 입력해주세요.");
         if (textInp) textInp.focus();
@@ -1513,24 +1610,64 @@
       poll.comments.push({
         id: 'cmt_' + Date.now(),
         name: name,
+        pw: pw,
         text: text,
         time: timeStr
       });
 
       if (textInp) textInp.value = '';
+      if (pwInp) pwInp.value = '';
 
       renderPolls();
       syncToServer();
     }
 
-    function quickDeleteComment(pollId, commentId) {
-      if (!isAdmin) return;
+    function editPollComment(pollId, commentId) {
       const poll = polls.find(item => String(item.id) === String(pollId));
       if (!poll || !poll.comments) return;
+      const cmt = poll.comments.find(c => String(c.id) === String(commentId));
+      if (!cmt) return;
 
-      if (!confirm("해당 댓글을 삭제하시겠습니까?")) return;
+      if (!isAdmin) {
+        const pw = prompt("댓글 작성 시 설정한 비밀번호를 입력하세요:");
+        if (pw === null) return;
+        if (pw !== cmt.pw) {
+          alert("비밀번호가 일치하지 않습니다.");
+          return;
+        }
+      }
+
+      const newText = prompt("수정할 댓글 내용을 입력하세요:", cmt.text);
+      if (newText === null) return;
+      if (!newText.trim()) {
+        alert("댓글 내용을 입력해주세요.");
+        return;
+      }
+
+      cmt.text = newText.trim();
+      renderPolls();
+      syncToServer();
+    }
+
+    function deletePollComment(pollId, commentId) {
+      const poll = polls.find(item => String(item.id) === String(pollId));
+      if (!poll || !poll.comments) return;
+      const cmt = poll.comments.find(c => String(c.id) === String(commentId));
+      if (!cmt) return;
+
+      if (isAdmin) {
+        if (!confirm("관리자 권한으로 해당 댓글을 삭제하시겠습니까?")) return;
+      } else {
+        const pw = prompt("댓글 작성 시 설정한 비밀번호를 입력하세요:");
+        if (pw === null) return;
+        if (pw !== cmt.pw) {
+          alert("비밀번호가 일치하지 않습니다.");
+          return;
+        }
+        if (!confirm("정말 댓글을 삭제하시겠습니까?")) return;
+      }
+
       poll.comments = poll.comments.filter(c => String(c.id) !== String(commentId));
-
       renderPolls();
       syncToServer();
     }
@@ -1648,15 +1785,15 @@
         if (poll.comments && poll.comments.length > 0) {
           commentsListHtml = `<div class="space-y-1.5 pt-1">`;
           poll.comments.forEach(cmt => {
-            let deleteCmtBtn = '';
-            if (isAdmin) {
-              deleteCmtBtn = `<button onclick="quickDeleteComment('${poll.id}', '${cmt.id}')" class="text-[10px] text-rose-400 hover:text-rose-300 ml-1">✕</button>`;
-            }
             commentsListHtml += `
               <div class="bg-black/50 p-2 rounded-lg border border-slate-800/80 text-[11px] leading-snug">
                 <div class="flex justify-between items-center mb-0.5">
                   <span class="font-bold text-white">${cmt.name}</span>
-                  <span class="text-[9.5px] text-slate-500">${cmt.time} ${deleteCmtBtn}</span>
+                  <div class="flex items-center gap-1.5 text-[9.5px] text-slate-500">
+                    <span>${cmt.time}</span>
+                    <button onclick="editPollComment('${poll.id}', '${cmt.id}')" class="text-slate-400 hover:text-amber-400 font-bold">수정</button>
+                    <button onclick="deletePollComment('${poll.id}', '${cmt.id}')" class="text-slate-400 hover:text-rose-400 font-bold">삭제</button>
+                  </div>
                 </div>
                 <p class="text-slate-300 whitespace-pre-wrap">${cmt.text}</p>
               </div>
@@ -1669,15 +1806,379 @@
           <div class="pt-2 border-t border-slate-800/80">
             <div class="text-[11px] font-bold text-slate-400 mb-1.5">💬 댓글 (${poll.comments ? poll.comments.length : 0}개)</div>
             ${commentsListHtml}
-            <form onsubmit="event.preventDefault(); submitComment('${poll.id}');" class="flex gap-1.5 mt-2">
-              <input type="text" id="comment-name-${poll.id}" required placeholder="이름" class="w-20 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
-              <input type="text" id="comment-text-${poll.id}" required placeholder="댓글을 입력하세요" class="flex-1 input-field px-2 py-1 rounded text-[11px]">
-              <button type="submit" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded text-[11px] transition shrink-0">등록</button>
+            <form onsubmit="event.preventDefault(); submitComment('${poll.id}');" class="flex flex-col gap-1.5 mt-2 bg-[#08090c] p-2 rounded-lg border border-slate-800/80">
+              <div class="flex items-center gap-1.5">
+                <input type="text" id="comment-name-${poll.id}" required placeholder="이름" class="w-20 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
+                <input type="password" id="comment-pw-${poll.id}" required placeholder="비밀번호(비밀댓글시에만 입력)" class="flex-1 input-field px-2 py-1 rounded text-[11px] font-bold">
+              </div>
+              <div class="flex gap-1.5">
+                <input type="text" id="comment-text-${poll.id}" required placeholder="댓글을 입력하세요" class="flex-1 input-field px-2 py-1 rounded text-[11px]">
+                <button type="submit" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded text-[11px] transition shrink-0">등록</button>
+              </div>
             </form>
           </div>
         `;
 
         card.innerHTML = headerHtml + optionsResultHtml + votingInputsHtml + commentsSectionHtml;
+        container.appendChild(card);
+      });
+    }
+
+    /* === 공지사항 관련 함수들 === */
+    function openNoticeModal() {
+      if (!isAdmin) return;
+      document.getElementById('notice-form').reset();
+      document.getElementById('edit-notice-id').value = '';
+      document.getElementById('notice-modal-main-title').innerText = '공지사항 작성';
+      document.getElementById('btn-notice-save-submit').innerText = '작성 완료';
+      document.getElementById('btn-delete-notice').classList.add('hidden');
+      document.getElementById('notice-modal').classList.remove('hidden');
+    }
+
+    function openEditNoticeModal(noticeId) {
+      if (!isAdmin) return;
+      const n = notices.find(item => String(item.id) === String(noticeId));
+      if (!n) return;
+
+      document.getElementById('edit-notice-id').value = n.id;
+      document.getElementById('inp-notice-title').value = n.title || '';
+      document.getElementById('inp-notice-content').value = n.content || '';
+
+      document.getElementById('notice-modal-main-title').innerText = '공지사항 수정';
+      document.getElementById('btn-notice-save-submit').innerText = '수정 저장';
+      document.getElementById('btn-delete-notice').classList.remove('hidden');
+      document.getElementById('notice-modal').classList.remove('hidden');
+    }
+
+    function closeNoticeModal() {
+      document.getElementById('notice-modal').classList.add('hidden');
+    }
+
+    function handleSaveNotice(e) {
+      e.preventDefault();
+      if (!isAdmin) return;
+
+      const editId = document.getElementById('edit-notice-id').value;
+      const title = document.getElementById('inp-notice-title').value.trim();
+      const content = document.getElementById('inp-notice-content').value.trim();
+
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')} (${getDayOfWeek(now.toISOString().slice(0,10))}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      if (editId) {
+        const n = notices.find(item => String(item.id) === String(editId));
+        if (n) {
+          n.title = title;
+          n.content = content;
+        }
+      } else {
+        const newId = 'notice_' + Date.now();
+        notices.unshift({
+          id: newId,
+          title: title,
+          content: content,
+          date: dateStr,
+          comments: []
+        });
+        openedNoticeId = newId; // 새로 작성한 공지는 자동 펼침
+      }
+
+      closeNoticeModal();
+      renderNotices();
+      syncToServer();
+    }
+
+    function handleDeleteNotice() {
+      if (!isAdmin) return;
+      const editId = document.getElementById('edit-notice-id').value;
+      if (!editId) return;
+
+      if (!confirm("공지사항을 완전히 삭제하시겠습니까?")) return;
+
+      notices = notices.filter(n => String(n.id) !== String(editId));
+      if (openedNoticeId === String(editId)) openedNoticeId = null;
+      closeNoticeModal();
+      renderNotices();
+      syncToServer();
+    }
+
+    function quickDeleteNotice(noticeId) {
+      if (!isAdmin) return;
+      const n = notices.find(item => String(item.id) === String(noticeId));
+      if (!n) return;
+
+      if (!confirm(`[${n.title}] 공지사항을 삭제하시겠습니까?`)) return;
+
+      notices = notices.filter(item => String(item.id) !== String(noticeId));
+      if (openedNoticeId === String(noticeId)) openedNoticeId = null;
+      renderNotices();
+      syncToServer();
+    }
+
+    // 1개만 펼쳐지도록 토글 (누르면 열리고, 다른 거 누르면 기존 건 접힘)
+    function toggleNotice(noticeId) {
+      const idStr = String(noticeId);
+      if (openedNoticeId === idStr) {
+        openedNoticeId = null; // 이미 열려있던 걸 누르면 접기
+      } else {
+        openedNoticeId = idStr; // 다른 걸 누르면 그것만 열기
+      }
+      renderNotices();
+    }
+
+    function submitNoticeComment(noticeId) {
+      const notice = notices.find(item => String(item.id) === String(noticeId));
+      if (!notice) return;
+
+      const nameInp = document.getElementById(`notice-comment-name-${noticeId}`);
+      const pwInp = document.getElementById(`notice-comment-pw-${noticeId}`);
+      const secretInp = document.getElementById(`notice-comment-secret-${noticeId}`);
+      const textInp = document.getElementById(`notice-comment-text-${noticeId}`);
+
+      const name = nameInp ? nameInp.value.trim() : '';
+      const pw = pwInp ? pwInp.value.trim() : '';
+      const isSecret = secretInp ? secretInp.checked : false;
+      const text = textInp ? textInp.value.trim() : '';
+
+      if (!name) {
+        alert("작성자 이름을 입력해주세요.");
+        if (nameInp) nameInp.focus();
+        return;
+      }
+
+      const isRegistered = roster.some(p => p.name && p.name.trim() === name);
+      if (!isRegistered) {
+        alert("선수명을 정확히 작성해주세요.");
+        if (nameInp) nameInp.focus();
+        return;
+      }
+
+      if (!pw) {
+        alert("비밀번호(비밀댓글시에만 입력)를 입력해주세요.");
+        if (pwInp) pwInp.focus();
+        return;
+      }
+
+      if (!text) {
+        alert("댓글 내용을 입력해주세요.");
+        if (textInp) textInp.focus();
+        return;
+      }
+
+      const now = new Date();
+      const timeStr = `${now.getMonth() + 1}.${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      if (!notice.comments) notice.comments = [];
+      notice.comments.push({
+        id: 'n_cmt_' + Date.now(),
+        name: name,
+        pw: pw,
+        isSecret: isSecret,
+        text: text,
+        time: timeStr
+      });
+
+      if (textInp) textInp.value = '';
+      if (pwInp) pwInp.value = '';
+      if (secretInp) secretInp.checked = false;
+
+      openedNoticeId = String(noticeId);
+      renderNotices();
+      syncToServer();
+    }
+
+    function editNoticeComment(noticeId, commentId) {
+      const notice = notices.find(item => String(item.id) === String(noticeId));
+      if (!notice || !notice.comments) return;
+      const cmt = notice.comments.find(c => String(c.id) === String(commentId));
+      if (!cmt) return;
+
+      if (!isAdmin) {
+        const pw = prompt("댓글 작성 시 설정한 비밀번호를 입력하세요:");
+        if (pw === null) return;
+        if (pw !== cmt.pw) {
+          alert("비밀번호가 일치하지 않습니다.");
+          return;
+        }
+      }
+
+      const newText = prompt("수정할 댓글 내용을 입력하세요:", cmt.text);
+      if (newText === null) return;
+      if (!newText.trim()) {
+        alert("댓글 내용을 입력해주세요.");
+        return;
+      }
+
+      cmt.text = newText.trim();
+      openedNoticeId = String(noticeId);
+      renderNotices();
+      syncToServer();
+    }
+
+    function deleteNoticeComment(noticeId, commentId) {
+      const notice = notices.find(item => String(item.id) === String(noticeId));
+      if (!notice || !notice.comments) return;
+      const cmt = notice.comments.find(c => String(c.id) === String(commentId));
+      if (!cmt) return;
+
+      if (isAdmin) {
+        if (!confirm("관리자 권한으로 해당 댓글을 삭제하시겠습니까?")) return;
+      } else {
+        const pw = prompt("댓글 작성 시 설정한 비밀번호를 입력하세요:");
+        if (pw === null) return;
+        if (pw !== cmt.pw) {
+          alert("비밀번호가 일치하지 않습니다.");
+          return;
+        }
+        if (!confirm("정말 댓글을 삭제하시겠습니까?")) return;
+      }
+
+      notice.comments = notice.comments.filter(c => String(c.id) !== String(commentId));
+      openedNoticeId = String(noticeId);
+      renderNotices();
+      syncToServer();
+    }
+
+    function revealNoticeSecretComment(noticeId, commentId) {
+      const notice = notices.find(n => String(n.id) === String(noticeId));
+      if (!notice || !notice.comments) return;
+      const cmt = notice.comments.find(c => String(c.id) === String(commentId));
+      if (!cmt) return;
+
+      const inputPw = prompt("비밀댓글 작성 시 입력한 비밀번호를 입력하세요:");
+      if (inputPw === null) return;
+      if (inputPw === cmt.pw) {
+        const el = document.getElementById(`secret-text-${cmt.id}`);
+        if (el) {
+          el.className = "text-amber-300/90 whitespace-pre-wrap leading-relaxed";
+          el.innerHTML = `<span class="text-[10px] text-amber-500 font-bold">[🔒 비밀댓글]</span> ${cmt.text}`;
+          el.onclick = null;
+        }
+      } else {
+        alert("비밀번호가 일치하지 않습니다.");
+      }
+    }
+
+    function renderNotices() {
+      const container = document.getElementById('notice-list');
+      const countEl = document.getElementById('assigned-notice-count');
+      if (!container) return;
+
+      countEl.innerText = `${notices.length}건 등록됨`;
+      container.innerHTML = '';
+
+      if (notices.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-24 text-xs text-slate-500">
+            등록된 공지사항이 없습니다.<br>${isAdmin ? '우측 상단의 [+ 공지 작성] 버튼을 눌러 새 공지를 등록해보세요.' : ''}
+          </div>
+        `;
+        return;
+      }
+
+      notices.forEach(notice => {
+        const card = document.createElement('div');
+        card.className = 'card-item p-3.5 rounded-xl border border-slate-800 flex flex-col gap-2.5 transition';
+
+        let adminActions = '';
+        if (isAdmin) {
+          adminActions = `
+            <div class="flex items-center gap-1 shrink-0" onclick="event.stopPropagation()">
+              <button onclick="openEditNoticeModal('${notice.id}')" class="text-xs text-amber-400 hover:text-amber-300 font-bold px-2 py-0.5 rounded bg-amber-950/40 border border-amber-900 transition">수정</button>
+              <button onclick="quickDeleteNotice('${notice.id}')" class="text-xs text-rose-400 hover:text-rose-300 font-bold px-2 py-0.5 rounded bg-rose-950/40 border border-rose-900 transition">삭제</button>
+            </div>
+          `;
+        }
+
+        const commentCount = (notice.comments || []).length;
+        const isOpen = openedNoticeId === String(notice.id);
+
+        const headerHtml = `
+          <div class="flex justify-between items-start gap-2 cursor-pointer select-none" onclick="toggleNotice('${notice.id}')">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0">공지</span>
+                <h4 class="text-xs md:text-sm font-black text-white hover:text-amber-400 transition">${notice.title}</h4>
+                <span class="text-[10px] text-slate-400 font-semibold shrink-0">💬 ${commentCount}</span>
+              </div>
+              <p class="text-[10px] text-slate-500 mt-1 font-mono">${notice.date || ''}</p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              ${adminActions}
+              <span id="notice-arrow-${notice.id}" class="text-xs text-slate-400 font-bold pl-1">${isOpen ? '▲' : '▼'}</span>
+            </div>
+          </div>
+        `;
+
+        const contentHtml = `
+          <div class="text-xs text-slate-200 bg-black/60 p-3 rounded-lg border border-slate-800/80 leading-relaxed whitespace-pre-wrap">${notice.content}</div>
+        `;
+
+        let commentsListHtml = '';
+        if (notice.comments && notice.comments.length > 0) {
+          commentsListHtml = `<div class="space-y-1.5 pt-1">`;
+          notice.comments.forEach(cmt => {
+            let commentBodyHtml = '';
+            if (cmt.isSecret) {
+              if (isAdmin) {
+                commentBodyHtml = `<p class="text-amber-300/90 whitespace-pre-wrap leading-relaxed"><span class="text-[10px] text-amber-500 font-bold">[🔒 비밀댓글]</span> ${cmt.text}</p>`;
+              } else {
+                commentBodyHtml = `
+                  <p id="secret-text-${cmt.id}" class="text-slate-500 italic flex items-center gap-1 cursor-pointer hover:text-slate-400 transition select-none" onclick="revealNoticeSecretComment('${notice.id}', '${cmt.id}')">
+                    <span>🔒 비밀댓글입니다. (클릭하여 확인)</span>
+                  </p>
+                `;
+              }
+            } else {
+              commentBodyHtml = `<p class="text-slate-300 whitespace-pre-wrap">${cmt.text}</p>`;
+            }
+
+            commentsListHtml += `
+              <div class="bg-black/50 p-2 rounded-lg border border-slate-800/80 text-[11px] leading-snug">
+                <div class="flex justify-between items-center mb-0.5">
+                  <span class="font-bold text-white">${cmt.name}</span>
+                  <div class="flex items-center gap-1.5 text-[9.5px] text-slate-500">
+                    <span>${cmt.time}</span>
+                    <button onclick="editNoticeComment('${notice.id}', '${cmt.id}')" class="text-slate-400 hover:text-amber-400 font-bold">수정</button>
+                    <button onclick="deleteNoticeComment('${notice.id}', '${cmt.id}')" class="text-slate-400 hover:text-rose-400 font-bold">삭제</button>
+                  </div>
+                </div>
+                ${commentBodyHtml}
+              </div>
+            `;
+          });
+          commentsListHtml += `</div>`;
+        }
+
+        const commentsSectionHtml = `
+          <div class="pt-2 border-t border-slate-800/80">
+            <div class="text-[11px] font-bold text-slate-400 mb-1.5">💬 댓글 (${commentCount}개)</div>
+            ${commentsListHtml}
+            <form onsubmit="event.preventDefault(); submitNoticeComment('${notice.id}');" class="flex flex-col gap-1.5 mt-2 bg-[#08090c] p-2 rounded-lg border border-slate-800/80">
+              <div class="flex items-center gap-2 flex-wrap">
+                <input type="text" id="notice-comment-name-${notice.id}" required placeholder="이름" class="w-20 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
+                <input type="password" id="notice-comment-pw-${notice.id}" required placeholder="비밀번호(비밀댓글시에만 입력)" class="w-48 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
+                <label class="flex items-center gap-1 text-[11px] text-slate-300 font-semibold cursor-pointer select-none shrink-0">
+                  <input type="checkbox" id="notice-comment-secret-${notice.id}" class="w-3.5 h-3.5 rounded accent-amber-500 cursor-pointer">
+                  <span>비밀댓글</span>
+                </label>
+              </div>
+              <div class="flex gap-1.5">
+                <input type="text" id="notice-comment-text-${notice.id}" required placeholder="댓글을 입력하세요" class="flex-1 input-field px-2 py-1 rounded text-[11px]">
+                <button type="submit" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded text-[11px] transition shrink-0">등록</button>
+              </div>
+            </form>
+          </div>
+        `;
+
+        const collapsibleBodyHtml = `
+          <div id="notice-body-${notice.id}" class="${isOpen ? '' : 'hidden'} flex flex-col gap-2.5 pt-2 border-t border-slate-800/80">
+            ${contentHtml}
+            ${commentsSectionHtml}
+          </div>
+        `;
+
+        card.innerHTML = headerHtml + collapsibleBodyHtml;
         container.appendChild(card);
       });
     }
@@ -2070,6 +2571,7 @@
       renderNumberBoard();
       renderSchedules();
       renderPolls();
+      renderNotices();
     }
 
     function sortRoster(type) {
