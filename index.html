@@ -239,7 +239,7 @@
         <div id="lineup-container" class="flex-1 rounded-xl border border-dashed border-slate-800 p-2 overflow-y-auto space-y-2">
           <div id="empty-lineup-msg" class="h-full flex flex-col items-center justify-center text-center py-20 text-slate-500 text-xs">
             <p class="font-bold text-slate-400 text-sm">선수를 출전 명단에 올려주세요</p>
-            <p class="text-xs text-slate-600 mt-1.5">좌측 선수명단에서 [+]를 누르면 타순에 추가됩니다.</p>
+            <p class="text-xs text-slate-600 mt-1.5">${isAdmin ? '좌측 선수명단에서 [+]를 누르면 타순에 추가됩니다.' : '관리자 모드가 활성화되면 선수를 배치할 수 있습니다.'}</p>
           </div>
         </div>
       </div>
@@ -1433,12 +1433,12 @@
 
           const oldOptions = poll.options || [];
           poll.options = optionsList.map((optText, i) => {
-            const matched = oldOptions.find(o => o.text === optText);
-            if (matched) {
+            // 해당 칸(i번째)의 기존 투표 결과(id, voters)를 유지하여 내용 수정 시에도 투표 결과가 보존됨
+            if (oldOptions[i]) {
               return {
-                id: matched.id,
+                id: oldOptions[i].id,
                 text: optText,
-                voters: matched.voters || []
+                voters: oldOptions[i].voters || []
               };
             }
             return {
@@ -1524,7 +1524,7 @@
         return;
       }
 
-      if (!voterPw) {
+      if (!isAdmin && !voterPw) {
         alert("비밀번호를 입력해주세요.\n(최초 설정한 비밀번호는 향후 투표 수정 시 본인 확인용으로 사용됩니다)");
         if (pwInp) pwInp.focus();
         return;
@@ -1534,13 +1534,15 @@
 
       const hasVotedBefore = poll.options.some(opt => (opt.voters || []).includes(voterName));
       if (hasVotedBefore) {
-        if (poll.voterPasswords[voterName] && poll.voterPasswords[voterName] !== voterPw) {
+        if (!isAdmin && poll.voterPasswords[voterName] && poll.voterPasswords[voterName] !== voterPw) {
           alert("비밀번호가 일치하지 않습니다.\n기존에 설정한 본인의 비밀번호를 정확히 입력해주세요.");
           if (pwInp) pwInp.focus();
           return;
         }
       } else {
-        poll.voterPasswords[voterName] = voterPw;
+        if (voterPw) {
+          poll.voterPasswords[voterName] = voterPw;
+        }
       }
 
       const form = document.getElementById(`poll-vote-form-${pollId}`);
@@ -1593,7 +1595,7 @@
         return;
       }
 
-      if (!pw) {
+      if (!isAdmin && !pw) {
         alert("비밀번호를 입력해주세요.");
         if (pwInp) pwInp.focus();
         return;
@@ -1646,9 +1648,9 @@
       if (!cmt) return;
 
       if (!isAdmin) {
-        const pw = prompt("댓글 작성 시 설정한 비밀번호를 입력하세요:");
-        if (pw === null) return;
-        if (pw !== cmt.pw) {
+        const inputPw = prompt("댓글 작성 시 설정한 비밀번호를 입력하세요:");
+        if (inputPw === null) return;
+        if (inputPw !== cmt.pw) {
           alert("비밀번호가 일치하지 않습니다.");
           return;
         }
@@ -1661,7 +1663,7 @@
       const submitBtn = document.getElementById(`comment-submit-btn-${pollId}`);
 
       if (nameInp) nameInp.value = cmt.name;
-      if (pwInp) pwInp.value = cmt.pw;
+      if (pwInp) pwInp.value = cmt.pw || '';
       if (textInp) {
         textInp.value = cmt.text;
         textInp.focus();
@@ -1778,7 +1780,7 @@
               </div>
               <div>
                 <label class="text-[11px] text-slate-400 font-bold block mb-1">비밀번호 (수정/본인 확인용) <span class="text-rose-400">*</span></label>
-                <input type="password" id="voter-pw-${poll.id}" required placeholder="4자리 등 입력" class="w-full input-field px-2.5 py-1.5 rounded text-xs font-bold">
+                <input type="password" id="voter-pw-${poll.id}" ${isAdmin ? '' : 'required'} placeholder="${isAdmin ? '비번(선택)' : '4자리 등 입력'}" class="w-full input-field px-2.5 py-1.5 rounded text-xs font-bold">
               </div>
             </div>
             <div class="grid grid-cols-2 gap-2 pt-1">
@@ -1975,7 +1977,7 @@
         return;
       }
 
-      if (!pw) {
+      if (!isAdmin && !pw) {
         alert("비밀번호를 입력해주세요.");
         if (pwInp) pwInp.focus();
         return;
@@ -2048,7 +2050,7 @@
       const submitBtn = document.getElementById(`notice-comment-submit-btn-${noticeId}`);
 
       if (nameInp) nameInp.value = cmt.name;
-      if (pwInp) pwInp.value = cmt.pw;
+      if (pwInp) pwInp.value = cmt.pw || '';
       if (secretInp) secretInp.checked = !!cmt.isSecret;
       if (textInp) {
         textInp.value = cmt.text;
@@ -2203,7 +2205,7 @@
               <input type="hidden" id="notice-comment-edit-id-${notice.id}">
               <div class="flex items-center gap-2 flex-wrap">
                 <input type="text" id="notice-comment-name-${notice.id}" required placeholder="이름" class="w-20 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
-                <input type="password" id="notice-comment-pw-${notice.id}" required placeholder="비밀번호" class="w-24 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
+                <input type="password" id="notice-comment-pw-${notice.id}" ${isAdmin ? '' : 'required'} placeholder="${isAdmin ? '비밀번호(선택)' : '비밀번호'}" class="w-24 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
                 <label class="flex items-center gap-1 text-[11px] text-slate-300 font-semibold cursor-pointer select-none shrink-0">
                   <input type="checkbox" id="notice-comment-secret-${notice.id}" class="w-3.5 h-3.5 rounded accent-amber-500 cursor-pointer">
                   <span>비밀댓글</span>
@@ -2226,39 +2228,6 @@
 
         card.innerHTML = headerHtml + collapsibleBodyHtml;
         container.appendChild(card);
-      });
-    }
-
-    function sortLineupByPosition() {
-      const posOrder = {
-        'C': 1,
-        '1B': 2,
-        '2B': 3,
-        '3B': 4,
-        'SS': 5,
-        'LF': 6,
-        'CF': 7,
-        'RF': 8,
-        'P': 9, 'SP': 9, 'RP': 9,
-        'P(only)': 10,
-        'DH': 11,
-        'SUB': 12,
-        '-': 13
-      };
-      
-      lineup.sort((a, b) => {
-        const isSubA = a.orderPos === 'SUB';
-        const isSubB = b.orderPos === 'SUB';
-
-        if (isSubA && !isSubB) return 1;
-        if (!isSubA && isSubB) return -1;
-        if (isSubA && isSubB) {
-          return (a.name || '').localeCompare(b.name || '', 'ko');
-        }
-
-        const wA = posOrder[a.orderPos] || 99;
-        const wB = posOrder[b.orderPos] || 99;
-        return wA - wB;
       });
     }
 
@@ -2286,7 +2255,6 @@
       } else {
         lineup.splice(idx, 1);
       }
-      sortLineupByPosition();
       updateViews();
       syncToServer();
     }
@@ -2307,27 +2275,65 @@
         }
       }
       
+      // 포지션만 업데이트하고 타순(배열 위치)은 건드리지 않음
       lineup[idx].orderPos = newPos;
       
-      sortLineupByPosition();
       updateViews();
       syncToServer();
     }
 
-    function moveOrder(index, dir) {
-      if (!isAdmin) return;
-      const target = index + dir;
-      if (target < 0 || target >= lineup.length) return;
-      const temp = lineup[index];
-      lineup[index] = lineup[target];
-      lineup[target] = temp;
-      updateViews();
-      syncToServer();
+    function getSortedDisplayList() {
+      const regularBatters = lineup.filter(p => p.orderPos !== 'SUB' && p.orderPos !== '-' && p.orderPos !== 'P(only)');
+      const pOnlyPlayer = lineup.find(p => p.orderPos === 'P(only)');
+      const subPlayers = lineup.filter(p => p.orderPos === 'SUB' || p.orderPos === '-');
+
+      const sortedDisplayList = [];
+      let bOrder = 1;
+      
+      for (let i = 0; i < regularBatters.length && i < 9; i++) {
+        sortedDisplayList.push({ ...regularBatters[i], displayOrder: bOrder++ });
+      }
+      
+      if (pOnlyPlayer) {
+        sortedDisplayList.push({ ...pOnlyPlayer, displayOrder: 'P' });
+      }
+      
+      if (regularBatters[9]) {
+        sortedDisplayList.push({ ...regularBatters[9], displayOrder: bOrder++ });
+      }
+
+      subPlayers.forEach(p => {
+        sortedDisplayList.push({ ...p, displayOrder: '-' });
+      });
+      return sortedDisplayList;
     }
 
-    function removeOrder(index) {
+    function moveOrderKey(pKey, dir) {
       if (!isAdmin) return;
-      lineup.splice(index, 1);
+      const list = getSortedDisplayList();
+      const currIdx = list.findIndex(l => getPKey(l) === String(pKey));
+      if (currIdx === -1) return;
+      const targetIdx = currIdx + dir;
+      if (targetIdx < 0 || targetIdx >= list.length) return;
+
+      const p1 = list[currIdx];
+      const p2 = list[targetIdx];
+      const idx1 = lineup.findIndex(l => getPKey(l) === getPKey(p1));
+      const idx2 = lineup.findIndex(l => getPKey(l) === getPKey(p2));
+      if (idx1 !== -1 && idx2 !== -1) {
+        const temp = lineup[idx1];
+        lineup[idx1] = lineup[idx2];
+        lineup[idx2] = temp;
+        updateViews();
+        syncToServer();
+      }
+    }
+
+    function removeOrderKey(pKey) {
+      if (!isAdmin) return;
+      const idx = lineup.findIndex(l => getPKey(l) === String(pKey));
+      if (idx === -1) return;
+      lineup.splice(idx, 1);
       updateViews();
       syncToServer();
     }
@@ -2379,29 +2385,7 @@
       }
 
       container.innerHTML = '';
-      
-      const regularBatters = lineup.filter(p => p.orderPos !== 'SUB' && p.orderPos !== '-' && p.orderPos !== 'P(only)');
-      const pOnlyPlayer = lineup.find(p => p.orderPos === 'P(only)');
-      const subPlayers = lineup.filter(p => p.orderPos === 'SUB' || p.orderPos === '-');
-
-      const sortedDisplayList = [];
-      let bOrder = 1;
-      
-      for (let i = 0; i < regularBatters.length && i < 9; i++) {
-        sortedDisplayList.push({ ...regularBatters[i], displayOrder: bOrder++ });
-      }
-      
-      if (pOnlyPlayer) {
-        sortedDisplayList.push({ ...pOnlyPlayer, displayOrder: 'P' });
-      }
-      
-      if (regularBatters[9]) {
-        sortedDisplayList.push({ ...regularBatters[9], displayOrder: bOrder++ });
-      }
-
-      subPlayers.forEach(p => {
-        sortedDisplayList.push({ ...p, displayOrder: '-' });
-      });
+      const sortedDisplayList = getSortedDisplayList();
 
       sortedDisplayList.forEach((player, i) => {
         const isSub = player.orderPos === 'SUB';
@@ -2445,20 +2429,6 @@
       const idx = lineup.findIndex(l => getPKey(l) === String(pKey));
       if (idx === -1) return;
       changePos(idx, newPos);
-    }
-
-    function moveOrderKey(pKey, dir) {
-      if (!isAdmin) return;
-      const idx = lineup.findIndex(l => getPKey(l) === String(pKey));
-      if (idx === -1) return;
-      moveOrder(idx, dir);
-    }
-
-    function removeOrderKey(pKey) {
-      if (!isAdmin) return;
-      const idx = lineup.findIndex(l => getPKey(l) === String(pKey));
-      if (idx === -1) return;
-      removeOrder(idx);
     }
 
     function renderPreview() {
