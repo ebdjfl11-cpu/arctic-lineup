@@ -189,13 +189,13 @@
 
     <!-- [COLUMN 2] GAME & BATTING ORDER (관리자 모드일 때만 표시) -->
     <div id="col-game-order" class="w-full lg:w-[440px] panel-bg rounded-2xl p-4 flex flex-col h-[880px] overflow-hidden hidden shrink-0">
-      <div class="border-b border-slate-800 pb-3 mb-3 shrink-0">
-        <div class="flex justify-between items-center mb-2">
+      <div class="border-b border-slate-800 pb-3 mb-3 shrink-0 space-y-2">
+        <div class="flex justify-between items-center mb-1">
           <span class="text-xs font-black tracking-wider" style="color: var(--gold);">MATCH INFO</span>
           <span class="text-[11px] text-slate-500">관리자 전용 설정</span>
         </div>
 
-        <div class="grid grid-cols-2 gap-2 mb-2">
+        <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="text-[11px] text-slate-400 block mb-1">우리팀</label>
             <input type="text" id="game-myteam" value="ARCTIC BASEBALL CLUB" oninput="debounceSaveGameInfo()" class="w-full input-field px-3 py-1.5 rounded-lg text-xs font-bold match-input">
@@ -206,7 +206,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-2 mb-2">
+        <div class="grid grid-cols-3 gap-2">
           <div>
             <label class="text-[11px] text-slate-400 block mb-1">경기일</label>
             <input type="text" id="game-date" placeholder="2026.08.29" maxlength="10" oninput="handleDateInput(event); debounceSaveGameInfo();" class="w-full input-field px-2 py-1.5 rounded-lg text-xs text-center font-semibold match-input">
@@ -221,9 +221,24 @@
           </div>
         </div>
 
+        <!-- 라인업 미공개 설정 체크박스 -->
         <div class="flex items-center gap-2 pt-1 border-t border-slate-800">
           <input type="checkbox" id="game-unreleased" onchange="debounceSaveGameInfo()" class="w-4 h-4 rounded accent-amber-500 cursor-pointer">
           <label for="game-unreleased" class="text-[11px] text-slate-300 font-semibold cursor-pointer">라인업 미공개 (일반 모드에 Coming Soon 표시)</label>
+        </div>
+
+        <!-- 용병 투입 설정 -->
+        <div class="flex items-center justify-between pt-1 border-t border-slate-800/80">
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="game-mercenary-enabled" onchange="toggleMercenaryEnabled()" class="w-4 h-4 rounded accent-amber-500 cursor-pointer">
+            <label for="game-mercenary-enabled" class="text-[11px] text-slate-300 font-semibold cursor-pointer">용병 투입</label>
+          </div>
+          <div id="mercenary-stepper" class="flex items-center gap-1.5 hidden">
+            <button type="button" onclick="changeMercenaryCount(-1)" class="w-6 h-6 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded flex items-center justify-center text-xs font-bold transition select-none">-</button>
+            <span id="mercenary-count-display" class="font-mono text-xs font-black min-w-[16px] text-center" style="color: var(--gold);">1</span>
+            <button type="button" onclick="changeMercenaryCount(1)" class="w-6 h-6 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded flex items-center justify-center text-xs font-bold transition select-none">+</button>
+            <span class="text-[10px] text-slate-400 font-semibold">명</span>
+          </div>
         </div>
       </div>
 
@@ -1212,6 +1227,76 @@
       syncToServer();
     }
 
+    /* === 용병 투입 관련 함수들 === */
+    function createMercenary() {
+      const fillSequence = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'P'];
+      let assignedPos = 'DH';
+      for (let pos of fillSequence) {
+        let isOccupied = lineup.some(l => l.orderPos === pos || (pos === 'P' && l.orderPos === 'P(only)'));
+        if (!isOccupied) {
+          assignedPos = pos;
+          break;
+        }
+      }
+      return {
+        id: 'mercenary_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+        name: '용병',
+        no: '',
+        pos: '외야수',
+        role: '일반',
+        orderPos: assignedPos,
+        isMercenary: true
+      };
+    }
+
+    function toggleMercenaryEnabled() {
+      if (!isAdmin) return;
+      const chk = document.getElementById('game-mercenary-enabled');
+      if (chk.checked) {
+        const currentMercs = lineup.filter(p => p.isMercenary).length;
+        if (currentMercs === 0) {
+          lineup.push(createMercenary());
+        }
+      } else {
+        lineup = lineup.filter(p => !p.isMercenary);
+      }
+      updateViews();
+      syncToServer();
+    }
+
+    function changeMercenaryCount(delta) {
+      if (!isAdmin) return;
+      if (delta > 0) {
+        lineup.push(createMercenary());
+      } else if (delta < 0) {
+        for (let i = lineup.length - 1; i >= 0; i--) {
+          if (lineup[i].isMercenary) {
+            lineup.splice(i, 1);
+            break;
+          }
+        }
+      }
+      updateViews();
+      syncToServer();
+    }
+
+    function updateMercenaryUI() {
+      const mercCount = lineup.filter(p => p.isMercenary).length;
+      const mercCheckbox = document.getElementById('game-mercenary-enabled');
+      const mercStepper = document.getElementById('mercenary-stepper');
+      const mercCountDisplay = document.getElementById('mercenary-count-display');
+      if (mercCheckbox && mercStepper && mercCountDisplay) {
+        mercCheckbox.checked = mercCount > 0;
+        if (mercCount > 0) {
+          mercStepper.classList.remove('hidden');
+          mercCountDisplay.innerText = mercCount;
+        } else {
+          mercStepper.classList.add('hidden');
+          mercCountDisplay.innerText = '0';
+        }
+      }
+    }
+
     /* === 팀 일정 관련 함수들 === */
     function openScheduleModal() {
       if (!isAdmin) return;
@@ -1433,7 +1518,6 @@
 
           const oldOptions = poll.options || [];
           poll.options = optionsList.map((optText, i) => {
-            // 해당 칸(i번째)의 기존 투표 결과(id, voters)를 유지하여 내용 수정 시에도 투표 결과가 보존됨
             if (oldOptions[i]) {
               return {
                 id: oldOptions[i].id,
@@ -1780,7 +1864,7 @@
               </div>
               <div>
                 <label class="text-[11px] text-slate-400 font-bold block mb-1">비밀번호 (수정/본인 확인용) <span class="text-rose-400">*</span></label>
-                <input type="password" id="voter-pw-${poll.id}" ${isAdmin ? '' : 'required'} placeholder="${isAdmin ? '비번(선택)' : '4자리 등 입력'}" class="w-full input-field px-2.5 py-1.5 rounded text-xs font-bold">
+                <input type="password" id="voter-pw-${poll.id}" ${isAdmin ? '' : 'required'} placeholder="${isAdmin ? '비밀번호(선택)' : '4자리 등 입력'}" class="w-full input-field px-2.5 py-1.5 rounded text-xs font-bold">
               </div>
             </div>
             <div class="grid grid-cols-2 gap-2 pt-1">
@@ -1832,7 +1916,7 @@
               <input type="hidden" id="comment-edit-id-${poll.id}">
               <div class="flex items-center gap-1.5">
                 <input type="text" id="comment-name-${poll.id}" required placeholder="이름" class="w-20 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
-                <input type="password" id="comment-pw-${poll.id}" required placeholder="비밀번호" class="w-24 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
+                <input type="password" id="comment-pw-${poll.id}" ${isAdmin ? '' : 'required'} placeholder="${isAdmin ? '비밀번호(선택)' : '비밀번호'}" class="w-24 input-field px-2 py-1 rounded text-[11px] font-bold shrink-0">
               </div>
               <div class="flex gap-1.5">
                 <input type="text" id="comment-text-${poll.id}" required placeholder="댓글을 입력하세요" class="flex-1 input-field px-2 py-1 rounded text-[11px]">
@@ -2231,6 +2315,39 @@
       });
     }
 
+    function sortLineupByPosition() {
+      const posOrder = {
+        'C': 1,
+        '1B': 2,
+        '2B': 3,
+        '3B': 4,
+        'SS': 5,
+        'LF': 6,
+        'CF': 7,
+        'RF': 8,
+        'P': 9, 'SP': 9, 'RP': 9,
+        'P(only)': 10,
+        'DH': 11,
+        'SUB': 12,
+        '-': 13
+      };
+      
+      lineup.sort((a, b) => {
+        const isSubA = a.orderPos === 'SUB';
+        const isSubB = b.orderPos === 'SUB';
+
+        if (isSubA && !isSubB) return 1;
+        if (!isSubA && isSubB) return -1;
+        if (isSubA && isSubB) {
+          return (a.name || '').localeCompare(b.name || '', 'ko');
+        }
+
+        const wA = posOrder[a.orderPos] || 99;
+        const wB = posOrder[b.orderPos] || 99;
+        return wA - wB;
+      });
+    }
+
     function togglePlayerInLineup(playerKey) {
       if (!isAdmin) return;
       const player = roster.find(p => getPKey(p) === String(playerKey));
@@ -2275,7 +2392,6 @@
         }
       }
       
-      // 포지션만 업데이트하고 타순(배열 위치)은 건드리지 않음
       lineup[idx].orderPos = newPos;
       
       updateViews();
@@ -2300,6 +2416,10 @@
       
       if (regularBatters[9]) {
         sortedDisplayList.push({ ...regularBatters[9], displayOrder: bOrder++ });
+      }
+
+      for (let i = 10; i < regularBatters.length; i++) {
+        sortedDisplayList.push({ ...regularBatters[i], displayOrder: bOrder++ });
       }
 
       subPlayers.forEach(p => {
@@ -2373,6 +2493,7 @@
       const container = document.getElementById('lineup-container');
       const countEl = document.getElementById('lineup-count');
       countEl.innerText = lineup.length;
+      updateMercenaryUI();
 
       if (lineup.length === 0) {
         container.innerHTML = `
@@ -2416,7 +2537,7 @@
 
         row.innerHTML = `
           <span class="w-6 text-center font-black text-sm" style="color: ${isSub || isDash || isPOnly ? '#64748b' : 'var(--gold)'};">${orderDisplay}</span>
-          <span class="w-9 text-center font-mono font-black text-xs text-slate-300 bg-slate-950 py-1 rounded border border-slate-800">${player.no}</span>
+          <span class="w-9 text-center font-mono font-black text-xs text-slate-300 bg-slate-950 py-1 rounded border border-slate-800 ${player.isMercenary ? 'border-transparent bg-transparent' : ''}">${player.no || ''}</span>
           <span class="flex-1 font-bold text-sm ${isSub ? 'text-slate-400' : 'text-white'} pl-1 truncate">${player.name}</span>
           ${controlsHtml}
         `;
@@ -2504,9 +2625,12 @@
 
         if (assigned) {
           const displayPos = assigned.orderPos === 'P(only)' ? 'P' : assigned.orderPos;
-          el.innerHTML = `
+          const noCircleHtml = assigned.no ? `
             <circle cx="29" cy="10" r="10" fill="#000000" stroke="var(--gold)" stroke-width="1.2"/>
             <text x="29" y="13.5" fill="var(--gold)" font-size="10" font-weight="900" text-anchor="middle">${assigned.no}</text>
+          ` : '';
+          el.innerHTML = `
+            ${noCircleHtml}
             <rect x="0" y="19" width="58" height="30" rx="3" fill="#000000" stroke="var(--gold)" stroke-width="1.2"/>
             <text x="29" y="30" fill="var(--gold)" font-size="9" font-weight="900" text-anchor="middle">${displayPos}</text>
             <text x="29" y="42" fill="#ffffff" font-size="10" font-weight="900" text-anchor="middle">${assigned.name}</text>
