@@ -3033,9 +3033,10 @@
 
       tableGrid.innerHTML = '';
 
-      const regularBatters = lineup.filter(p => p.orderPos !== 'SUB' && p.orderPos !== '-' && p.orderPos !== 'P(only)');
-      const pOnlyPlayer = lineup.find(p => p.orderPos === 'P(only)');
-      const subPlayers = lineup.filter(p => p.orderPos === 'SUB');
+      const sortedList = getSortedDisplayList();
+      
+      const activeStarters = sortedList.filter(p => p.orderPos !== 'SUB' && p.orderPos !== '-');
+      const activeSubs = sortedList.filter(p => p.orderPos === 'SUB' || p.orderPos === '-');
 
       const col1 = [];
       const col2 = [];
@@ -3045,21 +3046,20 @@
         col2.push({ order: '', name: '', pos: '', isSub: true });
       }
 
-      let batOrder = 1;
-      for (let i = 0; i < regularBatters.length && i < 9; i++) {
-        const p = regularBatters[i];
-        col1[i] = { order: batOrder++, name: p.name, pos: p.orderPos, isSub: false };
+      for (let i = 0; i < activeStarters.length && i < 10; i++) {
+        const p = activeStarters[i];
+        col1[i] = { order: p.displayOrder, name: p.name, pos: p.orderPos === 'P(only)' ? 'P' : p.orderPos, isSub: false };
       }
 
-      if (pOnlyPlayer) {
-        col1[9] = { order: 'P', name: pOnlyPlayer.name, pos: 'P', isSub: false };
-      } else if (regularBatters[9]) {
-        col1[9] = { order: batOrder++, name: regularBatters[9].name, pos: regularBatters[9].orderPos, isSub: false };
+      let col2Index = 0;
+      for (let i = 10; i < activeStarters.length && col2Index < 10; i++) {
+        const p = activeStarters[i];
+        col2[col2Index++] = { order: p.displayOrder, name: p.name, pos: p.orderPos === 'P(only)' ? 'P' : p.orderPos, isSub: false };
       }
 
-      for (let i = 0; i < subPlayers.length && i < 10; i++) {
-        const p = subPlayers[i];
-        col2[i] = { order: '-', name: p.name, pos: 'SUB', isSub: true };
+      for (let i = 0; i < activeSubs.length && col2Index < 10; i++) {
+        const p = activeSubs[i];
+        col2[col2Index++] = { order: '-', name: p.name, pos: p.orderPos === '-' ? '-' : 'SUB', isSub: true };
       }
 
       let col1Html = `<div class="space-y-[2px]">`;
