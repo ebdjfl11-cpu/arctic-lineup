@@ -2998,7 +2998,7 @@
         { id: 'svg-slot-2B', matches: ['2B'], label: '2B' },
         { id: 'svg-slot-3B', matches: ['3B'], label: '3B' },
         { id: 'svg-slot-1B', matches: ['1B'], label: '1B' },
-        { id: 'svg-slot-P',  matches: ['P', 'SP', 'RP', 'P(only)'], label: 'P' },
+        { id: 'svg-slot-P',  matches: ['P', 'P(only)', 'SP', 'RP'], label: 'P' }, // 배열 순서가 우선순위가 됩니다.
         { id: 'svg-slot-C',  matches: ['C'], label: 'C' }
       ];
 
@@ -3006,7 +3006,12 @@
         const el = document.getElementById(slot.id);
         if (!el) return;
 
-        const assigned = lineup.find(p => slot.matches.includes(p.orderPos));
+        // 우선순위가 반영되도록 matches 배열 순서대로 탐색하여 첫 번째 일치하는 선수 적용
+        let assigned = null;
+        for (let i = 0; i < slot.matches.length; i++) {
+          assigned = lineup.find(p => p.orderPos === slot.matches[i]);
+          if (assigned) break; // 우선순위가 높은 포지션을 찾으면 탐색 종료
+        }
 
         if (assigned) {
           const displayPos = assigned.orderPos === 'P(only)' ? 'P' : assigned.orderPos;
