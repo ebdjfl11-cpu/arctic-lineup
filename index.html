@@ -2766,7 +2766,7 @@
       if (!isAdmin) return;
       const oldPos = lineup[idx].orderPos;
       
-      if (newPos !== '-' && newPos !== 'SUB') {
+      if (newPos !== '-' && newPos !== 'SUB' && newPos !== 'DH') {
         const existingIdx = lineup.findIndex((p, i) => {
           if (i === idx) return false;
           if (p.orderPos === newPos) return true;
